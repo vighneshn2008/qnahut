@@ -1,0 +1,86 @@
+{
+  "name": "qnahut",
+  "private": false,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A cyber-futuristic platform for hosting and running live team quiz competitions.",
+  "license": "MIT",
+  "keywords": [
+    "quiz",
+    "kahoot",
+    "trivia",
+    "react",
+    "live-events",
+    "buzzer"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "desktop": "npm run build && electron .",
+    "desktop:dev": "concurrently -k \"vite --host 0.0.0.0 --port 5173\" \"wait-on http://127.0.0.1:5173 && set NODE_ENV=development&& electron .\"",
+    "desktop:dist": "npm run build && electron-builder --win",
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.12.0",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.383.0",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-redux": "^9.3.0",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.2.1",
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.4",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7",
+    "prettier": "^3.3.3",
+    "vite": "^5.4.1",
+    "wait-on": "^9.1.0"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.qnahut.desktop",
+    "productName": "QNAHUT",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "allowScripts": {
+    "electron@38.2.0": true
+  }
+}

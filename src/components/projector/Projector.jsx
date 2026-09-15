@@ -10,7 +10,9 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useQuiz } from '../../context/QuizContext.jsx';
+import { useTheme } from '../../context/ThemeContext.jsx';
 import Confetti from '../common/Confetti.jsx';
+import HtmlBlock from '../common/HtmlBlock.jsx';
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -18,7 +20,32 @@ function formatTime(seconds) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function playBuzzTone() {
+// Derive displayed countdown from the absolute deadline rather than the stored
+// `remaining` so every window (host and mirror) shows the same number and
+// stale persisted values can never cause the display to flip-flop.
+function timerSeconds(timer) {
+  if (timer?.endsAt) return Math.max(0, Math.ceil((timer.endsAt - Date.now()) / 1000));
+  return Math.max(0, timer?.remaining ?? 0);
+}
+
+let cachedBuzzAudio = null;
+
+function playBuzzTone(soundDataUrl) {
+  if (soundDataUrl) {
+    try {
+      if (!cachedBuzzAudio || cachedBuzzAudio.dataset?.src !== soundDataUrl) {
+        cachedBuzzAudio = new Audio(soundDataUrl);
+        cachedBuzzAudio.dataset.src = soundDataUrl;
+      }
+      cachedBuzzAudio.currentTime = 0;
+      const playResult = cachedBuzzAudio.play();
+      if (playResult) playResult.catch(() => {});
+      return;
+    } catch {
+      // Fall through to the synthesized tone if the file can't be played.
+    }
+  }
+
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtor) return;
 
@@ -59,6 +86,7 @@ function playBuzzTone() {
 
 export default function Projector() {
   const { quiz } = useQuiz();
+  const { theme } = useTheme();
   const [buzzAnnouncement, setBuzzAnnouncement] = useState(null);
   const handledBuzzRef = useRef(null);
   const announcementTimeoutRef = useRef(null);
@@ -92,12 +120,12 @@ export default function Projector() {
     setBuzzAnnouncement({
       teamName: team?.name || 'Team',
     });
-    playBuzzTone();
+    playBuzzTone(theme?.buzzerSoundDataUrl);
     window.clearTimeout(announcementTimeoutRef.current);
     announcementTimeoutRef.current = window.setTimeout(() => setBuzzAnnouncement(null), 1250);
 
     return undefined;
-  }, [quiz, currentQuestionIndex, firstBuzz, firstBuzzTeamId, firstBuzzTime]);
+  }, [quiz, currentQuestionIndex, firstBuzz, firstBuzzTeamId, firstBuzzTime, theme?.buzzerSoundDataUrl]);
 
   useEffect(() => () => window.clearTimeout(announcementTimeoutRef.current), []);
 
@@ -165,20 +193,15 @@ function OfflineNotice({ teamName }) {
   return (
     <div
       role="status"
+      className="projector-offline"
       style={{
         position: 'fixed',
-        top: 18,
+        top: 72,
         left: 24,
         zIndex: 20,
-        padding: '10px 14px',
-        border: '1px solid var(--color-accent-warn)',
-        borderRadius: 'var(--radius)',
-        background: 'var(--color-bg-panel)',
-        color: 'var(--color-accent-warn)',
-        fontSize: 13,
-        fontWeight: 600,
       }}
     >
+      <span className="projector-offline__dot" aria-hidden="true" />
       {teamName} went offline
     </div>
   );
@@ -257,6 +280,7 @@ function FullBleed({ children }) {
   const { quiz } = useQuiz();
   return (
     <div
+      className="projector-vignette"
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -265,13 +289,14 @@ function FullBleed({ children }) {
         justifyContent: 'center',
         background: 'var(--color-bg-void)',
         backgroundImage:
-          'linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--color-accent-primary) 8%, transparent) 32px), repeating-linear-gradient(90deg, transparent 0, transparent 31px, color-mix(in srgb, var(--color-accent-primary) 8%, transparent) 32px), var(--theme-background-image)',
+          'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--color-accent-primary) 6%, transparent) 32px), repeating-linear-gradient(90deg, transparent 0, transparent 31px, color-mix(in srgb, var(--color-accent-primary) 6%, transparent) 32px), var(--theme-background-image)',
         backgroundSize: 'auto, 32px 32px, 32px 32px, cover',
         backgroundPosition: 'center',
         color: 'var(--color-text-primary)',
         padding: '88px 48px 48px',
         textAlign: 'center',
         position: 'relative',
+        zIndex: 0,
       }}
     >
       <ProjectorHeader quiz={quiz} />
@@ -283,45 +308,31 @@ function FullBleed({ children }) {
 
 function ProjectorHeader({ quiz }) {
   return (
-    <header
-      className="row"
-      style={{
-        position: 'absolute',
-        top: 18,
-        left: 24,
-        right: 24,
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        textAlign: 'left',
-      }}
-    >
+    <header className="projector-header">
       <div className="row gap-sm" style={{ minWidth: 0 }}>
         {quiz?.logoDataUrl && (
           <img
             src={quiz.logoDataUrl}
             alt="Quiz logo"
-            style={{
-              width: 42,
-              height: 42,
-              objectFit: 'cover',
-              clipPath: 'var(--clip-hexadecagon)',
-              border: '2px solid var(--color-accent-primary)',
-            }}
+            className="projector-header__logo"
           />
         )}
         <div style={{ minWidth: 0 }}>
-          <strong style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: 16 }}>
+          <strong
+            style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: 18 }}
+          >
             {quiz?.name}
           </strong>
           {quiz?.description && (
-            <span style={{ display: 'block', color: 'var(--color-text-muted)', fontSize: 12 }}>
+            <span style={{ display: 'block', color: 'var(--color-text-muted)', fontSize: 13 }}>
               {quiz.description}
             </span>
           )}
         </div>
       </div>
-      <span className="badge badge-success" style={{ flexShrink: 0 }}>
-        LIVE
+      <span className="projector-header__live">
+        <span className="projector-header__live-dot" aria-hidden="true" />
+        <span className="badge badge-success" style={{ fontSize: 13 }}>LIVE</span>
       </span>
     </header>
   );
@@ -336,7 +347,7 @@ function QuestionView() {
     quiz.modes.hideQuestionAfterBuzz === true &&
     buzzer.order.length > 0 &&
     quiz.projectorQuestionRevealed !== true;
-  const hideQuestionAfterTimer = question.hideAfterTimer === true && quiz.timer.remaining === 0;
+  const hideQuestionAfterTimer = question.hideAfterTimer === true && timerSeconds(quiz.timer) === 0;
 
   if (!question) return <FullBleed>Waiting for the host to load a question…</FullBleed>;
 
@@ -398,11 +409,11 @@ function QuestionView() {
   if (question.type === 'html' && question.fullscreenMedia) {
     return (
       <FullBleed>
-        <div
+        <HtmlBlock
           key={question.id}
+          html={question.htmlContent}
           className="question-enter projector-fullscreen-content"
           style={{ fontSize: 28, maxWidth: 960 }}
-          dangerouslySetInnerHTML={{ __html: question.htmlContent }}
         />
       </FullBleed>
     );
@@ -443,7 +454,7 @@ function QuestionView() {
         }}
       >
         <div
-          className="panel-raised projector-surface stack gap-md"
+          className="panel-raised projector-surface projector-surface--accent stack gap-md"
           style={{
             justifyContent: 'center',
             alignItems: 'center',
@@ -453,48 +464,56 @@ function QuestionView() {
         >
           {hideQuestionAfterBuzz ? (
             <>
-              <span className="badge mono" style={{ fontSize: 14 }}>
+              <span className="badge mono" style={{ fontSize: 15, fontWeight: 600 }}>
                 First buzz
               </span>
               <h1
                 className="projector-question-title"
-                style={{ fontSize: 42, maxWidth: 1000, lineHeight: 1.2 }}
+                style={{ fontSize: 44, maxWidth: 1000, lineHeight: 1.15, textShadow: '0 0 40px color-mix(in srgb, var(--color-accent-primary) 40%, transparent)' }}
               >
                 {firstBuzzTeam?.name || 'Team'} buzzed
               </h1>
             </>
           ) : hideQuestionAfterTimer ? (
             <>
-              <span className="badge mono" style={{ fontSize: 14 }}>
+              <span className="badge mono" style={{ fontSize: 15, fontWeight: 600 }}>
                 Timer ended
               </span>
               <h1
                 className="projector-question-title"
-                style={{ fontSize: 42, maxWidth: 1000, lineHeight: 1.2 }}
+                style={{ fontSize: 44, maxWidth: 1000, lineHeight: 1.15, textShadow: '0 0 40px color-mix(in srgb, var(--color-accent-secondary) 40%, transparent)' }}
               >
                 Time&apos;s up
               </h1>
             </>
           ) : (
             <>
-              <span className="badge mono" style={{ fontSize: 14 }}>
+              <span
+                className="badge mono"
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  boxShadow: '0 0 14px color-mix(in srgb, var(--color-accent-primary) 20%, transparent)',
+                }}
+              >
                 Question {quiz.currentQuestionIndex + 1}
               </span>
               {question.type === 'html' ? (
-                <div
+                <HtmlBlock
+                  html={question.htmlContent}
                   className="projector-question-title"
                   style={{ fontSize: 28, maxWidth: 1000, whiteSpace: 'pre-wrap' }}
-                  dangerouslySetInnerHTML={{ __html: question.htmlContent }}
                 />
               ) : (
                 question.text && (
                   <h1
                     className="projector-question-title"
                     style={{
-                      fontSize: 48,
+                      fontSize: 50,
                       maxWidth: 1000,
-                      lineHeight: 1.2,
+                      lineHeight: 1.18,
                       whiteSpace: 'pre-wrap',
+                      textShadow: '0 0 48px color-mix(in srgb, var(--color-accent-primary) 35%, transparent)',
                     }}
                   >
                     {question.text}
@@ -527,19 +546,26 @@ function ProjectorWidgets({ quiz }) {
     widgets.push(
       <div
         key="timer"
-        className="panel-raised projector-surface stack gap-xs"
+        className="panel-raised projector-surface projector-widget-timer stack gap-xs"
         style={{
           justifyContent: 'center',
           alignItems: 'flex-start',
-          padding: '14px 18px',
+          padding: '14px 20px',
           minHeight: 104,
         }}
       >
         <span className="row gap-xs" style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
           <TimerIcon size={14} aria-hidden="true" /> TIME
         </span>
-        <strong className="mono" style={{ fontSize: 34, color: 'var(--color-accent-primary)' }}>
-          {formatTime(quiz.timer.remaining)}
+        <strong
+          className="mono"
+          style={{
+            fontSize: 36,
+            color: 'var(--color-accent-primary)',
+            textShadow: '0 0 20px color-mix(in srgb, var(--color-accent-primary) 35%, transparent)',
+          }}
+        >
+          {formatTime(timerSeconds(quiz.timer))}
         </strong>
       </div>,
     );
@@ -553,7 +579,7 @@ function ProjectorWidgets({ quiz }) {
         style={{
           justifyContent: 'center',
           alignItems: 'stretch',
-          padding: '14px 18px',
+          padding: '14px 20px',
           minHeight: 104,
         }}
       >
@@ -564,15 +590,36 @@ function ProjectorWidgets({ quiz }) {
           <div
             key={team.id}
             className="row"
-            style={{ justifyContent: 'space-between', fontSize: 13 }}
+            style={{ justifyContent: 'space-between', fontSize: 14, alignItems: 'center' }}
           >
-            <span>
-              <span className="mono" style={{ color: 'var(--color-text-muted)' }}>
-                0{index + 1}
-              </span>{' '}
-              {team.name}
+            <span className="row gap-xs" style={{ alignItems: 'center', minWidth: 0 }}>
+              <span
+                className="mono"
+                style={{
+                  color: index === 0 ? 'var(--color-accent-warn)' : 'var(--color-text-muted)',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  width: 16,
+                  flexShrink: 0,
+                }}
+              >
+                {index + 1}
+              </span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {team.name}
+              </span>
             </span>
-            <strong className="mono">{team.score}</strong>
+            <strong
+              className="mono"
+              style={{
+                color: index === 0 ? 'var(--color-accent-warn)' : 'var(--color-text-primary)',
+                fontSize: 14,
+                flexShrink: 0,
+                marginLeft: 12,
+              }}
+            >
+              {team.score}
+            </strong>
           </div>
         ))}
       </div>,
@@ -599,8 +646,17 @@ function AnswerView() {
 
   return (
     <FullBleed>
-      <div className="stack gap-md" style={{ width: 'min(1100px, 100%)', alignItems: 'center' }}>
-        <span className="badge mono">ANSWER</span>
+      <div className="question-enter stack gap-md" style={{ width: 'min(1100px, 100%)', alignItems: 'center' }}>
+        <span
+          className="badge mono"
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            boxShadow: '0 0 14px color-mix(in srgb, var(--color-accent-success) 25%, transparent)',
+          }}
+        >
+          ANSWER
+        </span>
         {question?.text && (
           <p
             style={{
@@ -614,6 +670,7 @@ function AnswerView() {
           </p>
         )}
         <h1
+          className="projector-answer-text"
           style={{
             fontSize: 'clamp(48px, 8vw, 120px)',
             lineHeight: 1.05,
@@ -671,19 +728,17 @@ function MediaBlock({ type, src, label, fit = 'contain', fullBleed = false, full
 
 function TimerView() {
   const { quiz } = useQuiz();
-  const remaining = quiz.timer.remaining;
-  const low = remaining <= 5 && remaining > 3;
+  const remaining = timerSeconds(quiz.timer);
   const critical = remaining <= 3 && remaining > 0;
   return (
     <FullBleed>
       <span
-        className={critical ? 'shake' : low ? 'pulse' : ''}
+        className={critical ? 'projector-timer projector-timer--critical' : 'projector-timer'}
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 160,
           fontWeight: 700,
           display: 'inline-block',
-          color: 'var(--color-accent-primary)',
         }}
       >
         {formatTime(remaining)}
@@ -740,13 +795,24 @@ function BuzzerView() {
       <FullBleed>
         <ConnectedTeams quiz={quiz} />
         {qrDataUrl && (
-          <img
-            src={qrDataUrl}
-            alt="Scan to join this quiz"
-            width="280"
-            height="280"
-            style={{ background: '#fff', padding: 10, borderRadius: 14 }}
-          />
+          <div className="projector-qr-frame question-enter">
+            <img
+              src={qrDataUrl}
+              alt="Scan to join this quiz"
+              width="240"
+              height="240"
+            />
+            <span
+              style={{
+                fontSize: 13,
+                color: 'var(--color-text-muted)',
+                letterSpacing: '0.04em',
+                fontWeight: 500,
+              }}
+            >
+              Scan to join
+            </span>
+          </div>
         )}
       </FullBleed>
     );
@@ -757,25 +823,47 @@ function BuzzerView() {
   return (
     <FullBleed>
       <ConnectedTeams quiz={quiz} />
-      <span className="pulse badge badge-danger" style={{ fontSize: 16, marginBottom: 16 }}>
-        FIRST BUZZ
-      </span>
-      <h1 style={{ fontSize: 56, marginBottom: 32 }}>{winner?.name}</h1>
-      <div className="stack gap-sm" style={{ width: 360 }}>
-        {buzzer.order.map((entry, index) => (
-          <div
-            key={entry.teamId}
-            className="row"
-            style={{ justifyContent: 'space-between', fontSize: 18 }}
-          >
-            <span>
-              #{index + 1} {teamById[entry.teamId]?.name}
-            </span>
-            <span className="mono" style={{ color: 'var(--color-text-muted)' }}>
-              +{(entry.time - firstBuzzTime).toFixed(0)}ms
-            </span>
-          </div>
-        ))}
+      <div className="question-enter stack" style={{ alignItems: 'center' }}>
+        <span className="pulse badge badge-danger" style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>
+          FIRST BUZZ
+        </span>
+        <h1
+          className="projector-winner"
+          style={{
+            fontSize: 60,
+            marginBottom: 36,
+            lineHeight: 1.1,
+          }}
+        >
+          {winner?.name}
+        </h1>
+        <div className="stack gap-sm" style={{ width: 400 }}>
+          {buzzer.order.map((entry, index) => (
+            <div
+              key={entry.teamId}
+              className="panel-raised row"
+              style={{
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: 17,
+                padding: '12px 18px',
+                gap: 12,
+              }}
+            >
+              <span className="row gap-sm" style={{ alignItems: 'center', minWidth: 0 }}>
+                <span className={index === 0 ? 'projector-rank projector-rank--gold' : 'projector-rank'}>
+                  #{index + 1}
+                </span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {teamById[entry.teamId]?.name}
+                </span>
+              </span>
+              <span className="mono" style={{ color: 'var(--color-text-muted)', fontSize: 14, flexShrink: 0 }}>
+                +{(entry.time - firstBuzzTime).toFixed(0)}ms
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </FullBleed>
   );
@@ -785,23 +873,29 @@ function ConnectedTeams({ quiz }) {
   const connectedTeams = quiz.teams.filter((team) => team.connected);
   return (
     <div
-      className="panel-raised"
+      className="projector-connected"
       style={{
         position: 'absolute',
         left: 24,
         bottom: 24,
-        padding: '12px 16px',
-        textAlign: 'left',
         minWidth: 220,
+        maxWidth: 300,
       }}
     >
-      <strong style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>CONNECTED TEAMS</strong>
+      <span
+        className="row gap-xs"
+        style={{ fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.08em' }}
+      >
+        <span className="projector-connected__count">{connectedTeams.length}</span>
+        <strong>CONNECTED TEAMS</strong>
+      </span>
       <div className="stack gap-xs" style={{ marginTop: 8 }}>
         {connectedTeams.length === 0 ? (
           <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>None yet</span>
         ) : (
           connectedTeams.map((team) => (
-            <span key={team.id} style={{ fontSize: 14 }}>
+            <span key={team.id} className="projector-connected__team">
+              <span className="projector-connected__dot" aria-hidden="true" />
               {team.name}
             </span>
           ))
@@ -833,29 +927,64 @@ function LeaderboardView() {
   return (
     <FullBleed>
       <Confetti triggerKey={confettiKey} />
-      <h1 style={{ fontSize: 36, marginBottom: 32 }}>Leaderboard</h1>
-      <div className="stack gap-sm" style={{ width: 480 }}>
-        {ranked.map((team, index) => (
-          <div
-            key={team.id}
-            className={`row slide-up panel-raised ${index === 0 ? 'leader-glow' : ''}`}
-            style={{
-              justifyContent: 'space-between',
-              padding: '16px 24px',
-              animationDelay: index === 0 ? undefined : `${(ranked.length - index) * 0.08}s`,
-            }}
-          >
-            <span className="row gap-sm" style={{ fontSize: 22 }}>
-              {index === 0 && (
-                <Trophy size={20} color="var(--color-accent-warn)" aria-hidden="true" />
-              )}
-              #{index + 1} {team.name}
-            </span>
-            <span className="mono" style={{ fontSize: 22 }}>
-              {team.score}
-            </span>
-          </div>
-        ))}
+      <div className="question-enter stack" style={{ alignItems: 'center' }}>
+        <h1
+          className="projector-winner"
+          style={{
+            fontSize: 34,
+            marginBottom: 32,
+            letterSpacing: '0.01em',
+            fontFamily: 'var(--font-display)',
+          }}
+        >
+          Leaderboard
+        </h1>
+        <div className="stack gap-sm" style={{ width: 520 }}>
+          {ranked.map((team, index) => (
+            <div
+              key={team.id}
+              className={`row slide-up ${index === 0 ? 'projector-leader-row projector-leader-row--first' : 'projector-leader-row'}`}
+              style={{
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '16px 20px',
+                animationDelay: index === 0 ? undefined : `${(ranked.length - index) * 0.08}s`,
+              }}
+            >
+              <span className="row gap-sm" style={{ alignItems: 'center', fontSize: 22 }}>
+                <span
+                  className={
+                    index === 0
+                      ? 'projector-medal projector-medal--gold'
+                      : index === 1
+                        ? 'projector-medal projector-medal--silver'
+                        : index === 2
+                          ? 'projector-medal projector-medal--bronze'
+                          : 'projector-medal'
+                  }
+                >
+                  {index + 1}
+                </span>
+                {index === 0 && (
+                  <Trophy size={18} color="var(--color-accent-warn)" aria-hidden="true" />
+                )}
+                <span style={{ whiteSpace: 'nowrap' }}>{team.name}</span>
+              </span>
+              <span
+                className="mono"
+                style={{
+                  fontSize: 24,
+                  fontWeight: 700,
+                  color: index === 0 ? 'var(--color-accent-warn)' : 'var(--color-text-primary)',
+                  marginLeft: 16,
+                  flexShrink: 0,
+                }}
+              >
+                {team.score}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </FullBleed>
   );
@@ -868,14 +997,21 @@ function TeamAnswersView() {
 
   return (
     <FullBleed>
-      <div className="stack gap-md" style={{ width: 'min(900px, 100%)', textAlign: 'left' }}>
+      <div className="question-enter stack" style={{ width: 'min(900px, 100%)', textAlign: 'left' }}>
         <div>
-          <span className="badge mono">TEAM ANSWERS</span>
-          <h1 style={{ fontSize: 42, marginTop: 10 }}>Submitted answers</h1>
-          <p>Question {quiz.currentQuestionIndex + 1}</p>
+          <span className="badge mono" style={{ fontSize: 14, fontWeight: 600 }}>
+            TEAM ANSWERS
+          </span>
+          <h1 style={{ fontSize: 42, marginTop: 10, fontFamily: 'var(--font-display)' }}>
+            Submitted answers
+          </h1>
+          <p style={{ color: 'var(--color-text-muted)' }}>Question {quiz.currentQuestionIndex + 1}</p>
         </div>
         {answers.length === 0 ? (
-          <div className="panel-raised" style={{ padding: 24, textAlign: 'center' }}>
+          <div
+            className="panel-raised projector-surface"
+            style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)' }}
+          >
             <p>No answers submitted yet.</p>
           </div>
         ) : (
@@ -883,13 +1019,11 @@ function TeamAnswersView() {
             {answers.map(([teamId, answer], index) => (
               <div
                 key={teamId}
-                className="panel-raised row"
+                className="panel-raised projector-surface row"
                 style={{ justifyContent: 'space-between', gap: 20, padding: '18px 22px' }}
               >
-                <span className="row gap-sm">
-                  <strong className="mono" style={{ color: 'var(--color-accent-primary)' }}>
-                    0{index + 1}
-                  </strong>
+                <span className="row gap-sm" style={{ alignItems: 'center' }}>
+                  <span className="projector-rank">0{index + 1}</span>
                   <strong>{teamById[teamId]?.name || 'Unknown team'}</strong>
                 </span>
                 <span style={{ color: 'var(--color-text-primary)', textAlign: 'right' }}>

@@ -14,6 +14,7 @@ import {
   openQuizWebSocket,
   persistQuizSnapshot,
   publishNetworkQuizSnapshot,
+  quizSnapshotsDiffer,
   readDeepLink,
   setActiveQuiz,
   ensureQuizAccessToken,
@@ -66,7 +67,7 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
     function handleMessage(event) {
       const data = event.data;
       if (!data || data.quizId !== quiz.id) return;
-      if (data.type === 'SYNC') {
+      if (data.type === 'SYNC' && quizSnapshotsDiffer(data.quiz, quizRef.current)) {
         dispatch({ type: 'LOAD_QUIZ', payload: data.quiz });
       } else if (data.type === 'PRESENCE' && data.teamId) {
         dispatch({
@@ -88,7 +89,7 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
       const snapshot =
         (await loadNetworkQuizSnapshot(deepLink.quizId, deepLink.accessToken)) ||
         loadQuizSnapshot(deepLink.quizId);
-      if (!snapshot || JSON.stringify(snapshot) === JSON.stringify(quizRef.current)) return;
+      if (!snapshot || !quizSnapshotsDiffer(snapshot, quizRef.current)) return;
       dispatch({ type: 'LOAD_QUIZ', payload: snapshot });
     }
 
@@ -96,7 +97,7 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
       deepLink.quizId,
       deepLink.accessToken || quiz?.accessToken,
       (snapshot) => {
-        if (JSON.stringify(snapshot) !== JSON.stringify(quizRef.current)) {
+        if (quizSnapshotsDiffer(snapshot, quizRef.current)) {
           dispatch({ type: 'LOAD_QUIZ', payload: snapshot });
         }
       },
@@ -119,7 +120,7 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
 
     let active = true;
     loadNetworkQuizSnapshot(deepLink.quizId, deepLink.accessToken).then((snapshot) => {
-      if (active && snapshot && JSON.stringify(snapshot) !== JSON.stringify(quizRef.current)) {
+      if (active && snapshot && quizSnapshotsDiffer(snapshot, quizRef.current)) {
         dispatch({ type: 'LOAD_QUIZ', payload: snapshot });
       }
     });
@@ -136,14 +137,14 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
     let active = true;
     async function refreshGuestQuiz() {
       const snapshot = await loadNetworkQuizSnapshot(quiz.id, quiz.accessToken);
-      if (active && snapshot && JSON.stringify(snapshot) !== JSON.stringify(quizRef.current)) {
+      if (active && snapshot && quizSnapshotsDiffer(snapshot, quizRef.current)) {
         dispatch({ type: 'LOAD_QUIZ', payload: snapshot });
       }
     }
 
     const teamId = loadTeamSession()?.teamId;
     const socket = openQuizWebSocket(quiz.id, quiz.accessToken, (snapshot) => {
-      if (JSON.stringify(snapshot) !== JSON.stringify(quizRef.current)) {
+      if (quizSnapshotsDiffer(snapshot, quizRef.current)) {
         dispatch({ type: 'LOAD_QUIZ', payload: snapshot });
       }
     }, updatePresence, teamId);

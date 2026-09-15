@@ -124,6 +124,23 @@ export function broadcastQuizSnapshot(channel, quiz) {
 }
 
 /**
+ * Whether two quiz snapshots hold different state that should be applied to a
+ * mirroring window. Mirrors tick the countdown themselves from `timer.endsAt`,
+ * and the host deliberately skips republishing pure timer ticks, so snapshots
+ * that differ only in `timer.remaining` are treated as identical — otherwise a
+ * stale persisted value would keep overwriting the local countdown and the
+ * display would flip-flop between two numbers.
+ */
+export function quizSnapshotsDiffer(a, b) {
+  if (!a || !b) return a !== b;
+  const comparable = (value) => ({
+    ...value,
+    timer: value.timer ? { running: value.timer.running, endsAt: value.timer.endsAt } : value.timer,
+  });
+  return JSON.stringify(comparable(a)) !== JSON.stringify(comparable(b));
+}
+
+/**
  * Announces a team's connect/disconnect over the quiz's BroadcastChannel so
  * other windows on the same machine (host, projector) learn about it without
  * needing the WebSocket server — e.g. dev mode, where the local server that

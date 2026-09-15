@@ -6,6 +6,7 @@ import { exportQuizPackage, importQuizPackage } from '../../utils/quizPackage.js
 import Modal from '../common/Modal.jsx';
 import Button from '../common/Button.jsx';
 import Panel from '../common/Panel.jsx';
+import ThemePanel from './ThemePanel.jsx';
 
 export default function SettingsPanel({ onClose }) {
   const { quiz, updateMeta, updateModes, loadQuiz } = useQuiz();
@@ -131,6 +132,8 @@ export default function SettingsPanel({ onClose }) {
             </div>
           </div>
         </Panel>
+
+        <ThemePanel />
 
         <Panel title="Quiz logo">
           <div className="row gap-sm">

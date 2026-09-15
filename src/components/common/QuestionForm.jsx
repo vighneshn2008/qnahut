@@ -138,6 +138,10 @@ export default function QuestionForm({ question, onSave, onCancel }) {
             value={form.htmlContent}
             onChange={(e) => patch({ htmlContent: e.target.value })}
           />
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 6 }}>
+            Scripts are allowed — <span className="mono">&lt;script&gt;</span> tags run on the
+            projector, so you can add animations, counters, or embeds.
+          </p>
         </div>
       )}
 

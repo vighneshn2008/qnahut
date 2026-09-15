@@ -9,6 +9,7 @@ export function mergeTheme(imported) {
     fonts: { ...DEFAULT_THEME.fonts, ...(imported.fonts || {}) },
     radius: imported.radius || DEFAULT_THEME.radius,
     backgroundImage: imported.backgroundImage || DEFAULT_THEME.backgroundImage,
+    buzzerSoundDataUrl: imported.buzzerSoundDataUrl || DEFAULT_THEME.buzzerSoundDataUrl,
   };
 }
 

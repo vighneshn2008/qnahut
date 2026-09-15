@@ -17,6 +17,7 @@ import {
 import { useQuiz } from '../../context/QuizContext.jsx';
 import Button from '../common/Button.jsx';
 import Panel from '../common/Panel.jsx';
+import HtmlBlock from '../common/HtmlBlock.jsx';
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -81,7 +82,7 @@ export default function MainPanel({ onManageQuestions }) {
             style={{ marginBottom: 16 }}
           >
             {question.type === 'html' ? (
-              <div dangerouslySetInnerHTML={{ __html: question.htmlContent }} />
+              <HtmlBlock html={question.htmlContent} />
             ) : (
               question.text && (
                 <h2 style={{ fontSize: 22, whiteSpace: 'pre-wrap' }}>{question.text}</h2>

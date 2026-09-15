@@ -87,7 +87,8 @@ export function quizReducer(state = initialQuizState, action) {
         buzzerEpoch: Math.max(localBuzzerEpoch, incomingBuzzerEpoch),
         buzzer: keepLocalBuzzer ? state.buzzer : { ...incomingBuzzer },
         timer:
-          keepLocalTimer || (sameTimerDeadline && state.timer.running)
+          keepLocalTimer ||
+          (sameTimerDeadline && (state.timer.running || state.timer.remaining <= 0))
             ? state.timer
             : action.payload.timer ||
               timerForItem(action.payload, action.payload.currentQuestionIndex || 0),

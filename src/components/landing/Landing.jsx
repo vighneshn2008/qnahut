@@ -201,7 +201,9 @@ export default function Landing() {
             {FEATURES.map(({ icon: Icon, title, body }, index) => (
               <Panel key={title} className="landing-feature-card">
                 <span className="landing-feature-number mono">0{index + 1}</span>
-                <Icon size={22} color="var(--color-accent-primary)" aria-hidden="true" />
+                <span className="landing-icon-tile">
+                  <Icon size={20} aria-hidden="true" />
+                </span>
                 <h3>{title}</h3>
                 <p>{body}</p>
               </Panel>
@@ -262,7 +264,9 @@ function WorkflowStep({ number, icon: Icon, title, body }) {
   return (
     <article className="landing-step">
       <span className="landing-step-number mono">{number}</span>
-      <Icon size={24} color="var(--color-accent-primary)" aria-hidden="true" />
+      <span className="landing-icon-tile landing-icon-tile-step">
+        <Icon size={20} aria-hidden="true" />
+      </span>
       <h3>{title}</h3>
       <p>{body}</p>
     </article>

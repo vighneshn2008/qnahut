@@ -72,8 +72,7 @@ export default function Team() {
                 style={{
                   width: 'min(200px, 60vw)',
                   height: 'min(200px, 60vw)',
-                  clipPath:
-                    'polygon(6% 0%, 25% 0%, 50% 0%, 75% 0%, 94% 0%, 100% 25%, 100% 50%, 100% 75%, 94% 100%, 75% 100%, 50% 100%, 25% 100%, 6% 100%, 0% 75%, 0% 50%, 0% 25%)',
+                  clipPath: 'var(--clip-hexadecagon)',
                   border: 'none',
                   margin: '0 auto',
                   display: 'flex',

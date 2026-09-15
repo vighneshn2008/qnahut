@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Trophy, Zap, Image as ImageIcon, Video, Timer as TimerIcon } from 'lucide-react';
+import {
+  Trophy,
+  Zap,
+  Image as ImageIcon,
+  Video,
+  Timer as TimerIcon,
+  Maximize2,
+  Minimize2,
+} from 'lucide-react';
 import QRCode from 'qrcode';
 import { useQuiz } from '../../context/QuizContext.jsx';
 import Confetti from '../common/Confetti.jsx';
@@ -60,6 +68,7 @@ export default function Projector() {
   const firstBuzzTime = firstBuzz?.time;
   const previousConnectedRef = useRef(null);
   const [offlineTeam, setOfflineTeam] = useState(null);
+  const offlineTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!quiz) return undefined;
@@ -102,14 +111,18 @@ export default function Projector() {
       );
       if (disconnectedTeam) {
         setOfflineTeam(disconnectedTeam.name);
-        const timeout = window.setTimeout(() => setOfflineTeam(null), 3500);
-        previousConnectedRef.current = connectedIds;
-        return () => window.clearTimeout(timeout);
+        // Keep the dismiss timer in a ref (not an effect cleanup) so that
+        // unrelated quiz updates — which re-run this effect on every snapshot
+        // poll — never cancel it. The notice always disappears after 3.5s.
+        window.clearTimeout(offlineTimeoutRef.current);
+        offlineTimeoutRef.current = window.setTimeout(() => setOfflineTeam(null), 3500);
       }
     }
     previousConnectedRef.current = connectedIds;
     return undefined;
   }, [quiz]);
+
+  useEffect(() => () => window.clearTimeout(offlineTimeoutRef.current), []);
 
   if (!quiz) {
     return <FullBleed>No quiz loaded.</FullBleed>;
@@ -143,6 +156,7 @@ export default function Projector() {
       {view}
       {offlineTeam && <OfflineNotice teamName={offlineTeam} />}
       {buzzAnnouncement && <BuzzAnnouncement announcement={buzzAnnouncement} />}
+      <FullscreenToggle />
     </>
   );
 }
@@ -167,6 +181,42 @@ function OfflineNotice({ teamName }) {
     >
       {teamName} went offline
     </div>
+  );
+}
+
+function FullscreenToggle() {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    function handleChange() {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    }
+    document.addEventListener('fullscreenchange', handleChange);
+    return () => document.removeEventListener('fullscreenchange', handleChange);
+  }, []);
+
+  function toggle() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch?.(() => {});
+    } else {
+      document.documentElement.requestFullscreen?.().catch?.(() => {});
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className="projector-fullscreen-toggle"
+      aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+      title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+    >
+      {isFullscreen ? (
+        <Minimize2 size={16} aria-hidden="true" />
+      ) : (
+        <Maximize2 size={16} aria-hidden="true" />
+      )}
+    </button>
   );
 }
 
@@ -254,8 +304,7 @@ function ProjectorHeader({ quiz }) {
               width: 42,
               height: 42,
               objectFit: 'cover',
-              clipPath:
-                'polygon(6% 0%, 25% 0%, 50% 0%, 75% 0%, 94% 0%, 100% 25%, 100% 50%, 100% 75%, 94% 100%, 75% 100%, 50% 100%, 25% 100%, 6% 100%, 0% 75%, 0% 50%, 0% 25%)',
+              clipPath: 'var(--clip-hexadecagon)',
               border: '2px solid var(--color-accent-primary)',
             }}
           />

@@ -4,6 +4,7 @@ import { createDemoQuiz } from '../data/demoQuiz.js';
 import { createQuizStore, selectQuiz } from '../store/quizStore.js';
 import {
   broadcastQuizSnapshot,
+  broadcastTeamPresence,
   clearActiveQuiz,
   loadActiveQuizSnapshot,
   loadNetworkQuizSnapshot,
@@ -63,8 +64,15 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
     if (!channel) return undefined;
 
     function handleMessage(event) {
-      if (event.data?.type === 'SYNC' && event.data.quiz?.id === quiz.id) {
-        dispatch({ type: 'LOAD_QUIZ', payload: event.data.quiz });
+      const data = event.data;
+      if (!data || data.quizId !== quiz.id) return;
+      if (data.type === 'SYNC') {
+        dispatch({ type: 'LOAD_QUIZ', payload: data.quiz });
+      } else if (data.type === 'PRESENCE' && data.teamId) {
+        dispatch({
+          type: data.connected ? 'TEAM_CONNECT' : 'TEAM_DISCONNECT',
+          payload: data.teamId,
+        });
       }
     }
     channel.addEventListener('message', handleMessage);
@@ -228,8 +236,14 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
       applyScore: (teamId, delta, label) =>
         dispatch({ type: 'SCORE_APPLY', payload: { teamId, delta, label } }),
       undoScore: () => dispatch({ type: 'SCORE_UNDO' }),
-      connectTeam: (teamId) => dispatch({ type: 'TEAM_CONNECT', payload: teamId }),
-      disconnectTeam: (teamId) => dispatch({ type: 'TEAM_DISCONNECT', payload: teamId }),
+      connectTeam: (teamId) => {
+        dispatch({ type: 'TEAM_CONNECT', payload: teamId });
+        broadcastTeamPresence(channelRef.current, quizRef.current?.id, teamId, true);
+      },
+      disconnectTeam: (teamId) => {
+        dispatch({ type: 'TEAM_DISCONNECT', payload: teamId });
+        broadcastTeamPresence(channelRef.current, quizRef.current?.id, teamId, false);
+      },
     }),
     [dispatch],
   );

@@ -117,9 +117,25 @@ export function openQuizChannel(quizId) {
 export function broadcastQuizSnapshot(channel, quiz) {
   if (!channel || !quiz) return;
   try {
-    channel.postMessage({ type: 'SYNC', quiz });
+    channel.postMessage({ type: 'SYNC', quizId: quiz.id, quiz });
   } catch {
     // Ignore — the receiving window will still pick up localStorage on next read.
+  }
+}
+
+/**
+ * Announces a team's connect/disconnect over the quiz's BroadcastChannel so
+ * other windows on the same machine (host, projector) learn about it without
+ * needing the WebSocket server — e.g. dev mode, where the local server that
+ * relays QUIZ_PRESENCE is not started. Other devices still sync presence
+ * over the WebSocket.
+ */
+export function broadcastTeamPresence(channel, quizId, teamId, connected) {
+  if (!channel || !quizId || !teamId) return;
+  try {
+    channel.postMessage({ type: 'PRESENCE', quizId, teamId, connected });
+  } catch {
+    // Ignore — the WebSocket presence path still covers remote devices.
   }
 }
 

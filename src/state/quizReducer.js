@@ -60,17 +60,32 @@ export function quizReducer(state = initialQuizState, action) {
         state &&
         (incomingSyncRevision < localSyncRevision ||
           (incomingSyncRevision === localSyncRevision && incomingTimerRevision < localTimerRevision));
+      const keepLocalBuzzer =
+        sameQuestion &&
+        state &&
+        (incomingBuzzerEpoch < localBuzzerEpoch ||
+          (incomingBuzzerEpoch === localBuzzerEpoch && incomingBuzzerRevision < localBuzzerRevision));
       const sameTimerDeadline =
         state?.timer?.endsAt && state.timer.endsAt === action.payload.timer?.endsAt;
+      // Server snapshots always carry `connected: false` (the presence list is
+      // delivered separately via QUIZ_PRESENCE → SET_CONNECTIONS). Preserve the
+      // connection status from the current state so a snapshot load doesn't
+      // clobber the projector's connected-teams list.
+      const connectedMap = new Map(
+        (state?.teams || []).map((team) => [team.id, Boolean(team.connected)]),
+      );
+      const incomingTeams = (action.payload.teams || []).map((team) => ({
+        ...team,
+        connected: connectedMap.get(team.id) === true,
+      }));
       return {
         ...action.payload,
+        teams: incomingTeams,
         buzzerRevision: Math.max(localBuzzerRevision, incomingBuzzerRevision),
         timerRevision: Math.max(localTimerRevision, incomingTimerRevision),
         syncRevision: Math.max(localSyncRevision, incomingSyncRevision),
         buzzerEpoch: Math.max(localBuzzerEpoch, incomingBuzzerEpoch),
-        buzzer: {
-          ...incomingBuzzer,
-        },
+        buzzer: keepLocalBuzzer ? state.buzzer : { ...incomingBuzzer },
         timer:
           keepLocalTimer || (sameTimerDeadline && state.timer.running)
             ? state.timer

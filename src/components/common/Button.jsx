@@ -2,6 +2,7 @@ export default function Button({
   variant = 'default',
   block = false,
   icon: Icon,
+  iconSize = 16,
   className = '',
   children,
   ...rest
@@ -16,7 +17,7 @@ export default function Button({
 
   return (
     <button className={classes.join(' ')} {...rest}>
-      {Icon && <Icon size={16} aria-hidden="true" />}
+      {Icon && <Icon size={iconSize} aria-hidden="true" />}
       {children}
     </button>
   );

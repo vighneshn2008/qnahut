@@ -7,6 +7,9 @@ import {
   ChevronRight,
   AlertTriangle,
   Zap,
+  Maximize2,
+  Minimize2,
+  X,
 } from 'lucide-react';
 import { useQuiz } from '../../context/QuizContext.jsx';
 import {
@@ -48,6 +51,7 @@ export default function RemoteControl() {
   const [hostPassword, setHostPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showFullScreenQuestion, setShowFullScreenQuestion] = useState(false);
 
   const deepLink = readDeepLink();
   const quizId = deepLink.quizId;
@@ -189,42 +193,54 @@ export default function RemoteControl() {
         {/* Navigation + timer transport, one tight row */}
         <div className="row gap-xs">
           <Button
+            title="Previous"
             icon={ChevronLeft}
+            iconSize={22}
             onClick={prevQuestion}
             disabled={quiz.currentQuestionIndex === 0}
             style={{ flex: 1, minHeight: 48 }}
-          >
-            Prev
-          </Button>
+          />
           <Button
             variant="primary"
+            title={quiz.timer.running ? 'Pause' : 'Start timer'}
             icon={quiz.timer.running ? Pause : Play}
+            iconSize={22}
             onClick={quiz.timer.running ? timerPause : timerStart}
-            style={{ flex: 1, minHeight: 48, fontSize: 15 }}
-          >
-            {quiz.timer.running ? 'Pause' : 'Start'}
-          </Button>
+            style={{ flex: 1, minHeight: 48 }}
+          />
           <Button
+            title="Reset timer"
             icon={RotateCcw}
+            iconSize={22}
             onClick={timerReset}
-            style={{ flex: 1, minHeight: 48, fontSize: 15 }}
-          >
-            Timer
-          </Button>
+            style={{ flex: 1, minHeight: 48 }}
+          />
           <Button
+            title="Next"
             icon={ChevronRight}
+            iconSize={22}
             onClick={nextQuestion}
             disabled={!hasQuestion || quiz.currentQuestionIndex === quiz.questions.length - 1}
             style={{ flex: 1, minHeight: 48 }}
-          >
-            Next
-          </Button>
+          />
+          <Button
+            title="Full screen question"
+            icon={showFullScreenQuestion ? Minimize2 : Maximize2}
+            iconSize={22}
+            onClick={() => setShowFullScreenQuestion((value) => !value)}
+            disabled={!question}
+            style={{ flex: 1, minHeight: 48 }}
+          />
         </div>
 
         {/* Buzz round handling */}
-        <Button icon={AlertTriangle} onClick={resetBuzzer} style={{ minHeight: 44 }} block>
-          Reset buzzer
-        </Button>
+        <Button
+          icon={AlertTriangle}
+          title="Reset buzzer"
+          onClick={resetBuzzer}
+          style={{ minHeight: 44 }}
+          block
+        />
 
         {/* Projector view selector */}
         <Panel
@@ -365,6 +381,99 @@ export default function RemoteControl() {
           </Panel>
         )}
       </div>
+
+      {/* Full-screen question card, styled like the projector's quiz card */}
+      {showFullScreenQuestion && question && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="projector-vignette"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--color-bg-void)',
+            backgroundImage:
+              'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--color-accent-primary) 6%, transparent) 32px), repeating-linear-gradient(90deg, transparent 0, transparent 31px, color-mix(in srgb, var(--color-accent-primary) 6%, transparent) 32px), var(--theme-background-image)',
+            backgroundSize: 'auto, 32px 32px, 32px 32px, cover',
+            backgroundPosition: 'center',
+            color: 'var(--color-text-primary)',
+            padding: 'max(24px, env(safe-area-inset-top))',
+            textAlign: 'center',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowFullScreenQuestion(false)}
+            aria-label="Close full screen question"
+            title="Close"
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              width: 40,
+              height: 40,
+              display: 'grid',
+              placeItems: 'center',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-raised)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
+
+          <div
+            className="panel-raised projector-surface--accent stack gap-md"
+            style={{
+              width: '100%',
+              maxWidth: 900,
+              minHeight: '60vh',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: 32,
+              overflow: 'hidden',
+            }}
+          >
+            <span
+              className="badge mono"
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                boxShadow:
+                  '0 0 14px color-mix(in srgb, var(--color-accent-primary) 20%, transparent)',
+              }}
+            >
+              Question {quiz.currentQuestionIndex + 1} of {quiz.questions.length}
+            </span>
+            {question.text && (
+              <h2
+                style={{
+                  fontSize: 'min(48px, 11vw)',
+                  maxWidth: 1000,
+                  lineHeight: 1.18,
+                  whiteSpace: 'pre-wrap',
+                  margin: 0,
+                }}
+              >
+                {question.text}
+              </h2>
+            )}
+            {question.answer && (
+              <p style={{ fontSize: 20, color: 'var(--color-accent-success)', margin: 0 }}>
+                Answer: {question.answer}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

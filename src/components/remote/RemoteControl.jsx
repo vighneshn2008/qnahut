@@ -10,6 +10,11 @@ import {
   Maximize2,
   Minimize2,
   X,
+  HelpCircle,
+  Trophy,
+  Timer,
+  MessageSquare,
+  Eye,
 } from 'lucide-react';
 import { useQuiz } from '../../context/QuizContext.jsx';
 import {
@@ -21,12 +26,12 @@ import Panel from '../common/Panel.jsx';
 import Button from '../common/Button.jsx';
 
 const VIEW_BUTTONS = [
-  { view: 'question', label: 'Q', title: 'Question' },
-  { view: 'buzzer', label: 'Buz', title: 'Buzzer' },
-  { view: 'leaderboard', label: 'Lea', title: 'Leaderboard' },
-  { view: 'timer', label: 'Tim', title: 'Timer' },
-  { view: 'answer', label: 'Ans', title: 'Team answers' },
-  { view: 'reveal', label: 'Reveal', title: 'Reveal answer' },
+  { view: 'question', Icon: HelpCircle, title: 'Question' },
+  { view: 'buzzer', Icon: Zap, title: 'Buzzer' },
+  { view: 'leaderboard', Icon: Trophy, title: 'Leaderboard' },
+  { view: 'timer', Icon: Timer, title: 'Timer' },
+  { view: 'answer', Icon: MessageSquare, title: 'Team answers' },
+  { view: 'reveal', Icon: Eye, title: 'Reveal answer' },
 ];
 
 function formatTime(seconds) {
@@ -259,7 +264,7 @@ export default function RemoteControl() {
               gap: 6,
             }}
           >
-            {VIEW_BUTTONS.map(({ view, label, title }) => {
+            {VIEW_BUTTONS.map(({ view, Icon, title }) => {
               const isActive =
                 view === 'reveal' ? activeView === 'answer' : activeView === view;
               return (
@@ -267,11 +272,10 @@ export default function RemoteControl() {
                   key={view}
                   onClick={() => handleViewSelect(view)}
                   title={title}
+                  aria-label={title}
                   aria-pressed={isActive}
                   style={{
                     minHeight: 46,
-                    fontSize: 14,
-                    fontWeight: 600,
                     borderRadius: 'var(--radius)',
                     border: `2px solid ${isActive ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
                     background: isActive
@@ -279,19 +283,17 @@ export default function RemoteControl() {
                       : 'var(--color-bg-raised)',
                     color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
                     cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 2,
-                    padding: '4px 2px',
+                    display: 'grid',
+                    placeItems: 'center',
+                    padding: '8px 4px',
                     transition: 'background 0.15s, border-color 0.15s',
                   }}
                 >
-                  <span>{label}</span>
-                  {view === 'reveal' && (
-                    <Zap size={11} style={{ color: 'var(--color-accent-warn)' }} aria-hidden="true" />
-                  )}
+                  <Icon
+                    size={20}
+                    style={{ color: view === 'reveal' ? 'var(--color-accent-warn)' : undefined }}
+                    aria-hidden="true"
+                  />
                 </button>
               );
             })}

@@ -13,6 +13,7 @@ export default function Team() {
   const team = quiz?.teams.find((t) => t.id === activeTeamId);
   const buzzer = quiz?.buzzer || { order: [], answers: {}, locked: false };
   const myEntry = buzzer.order.find((entry) => entry.teamId === team?.id);
+  const alreadyBuzzed = Boolean(myEntry);
   const hasAnswered = team ? buzzer.answers[team.id] !== undefined : false;
   const requiresTextAnswer = quiz?.modes.requireTextAnswer === true;
 
@@ -67,8 +68,8 @@ export default function Team() {
             {!requiresTextAnswer && (
               <button
                 onClick={handleBuzz}
-                disabled={buzzer.locked}
-                className={!buzzer.locked ? 'pulse buzz-ready' : ''}
+                disabled={buzzer.locked || alreadyBuzzed}
+                className={!buzzer.locked && !alreadyBuzzed ? 'pulse buzz-ready' : ''}
                 style={{
                   width: 'min(200px, 60vw)',
                   height: 'min(200px, 60vw)',
@@ -80,14 +81,16 @@ export default function Team() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  background: buzzer.locked
+                  background: buzzer.locked || alreadyBuzzed
                     ? 'var(--color-bg-raised)'
                     : 'var(--color-accent-secondary)',
-                  color: buzzer.locked ? 'var(--color-text-muted)' : 'var(--color-bg-void)',
+                  color: buzzer.locked || alreadyBuzzed
+                    ? 'var(--color-text-muted)'
+                    : 'var(--color-bg-void)',
                   fontSize: 22,
                   fontWeight: 700,
                   fontFamily: 'var(--font-display)',
-                  cursor: quiz.buzzer.locked ? 'not-allowed' : 'pointer',
+                  cursor: buzzer.locked || alreadyBuzzed ? 'not-allowed' : 'pointer',
                 }}
               >
                 <Zap size={36} aria-hidden="true" />
@@ -103,11 +106,12 @@ export default function Team() {
               }}
             >
               {requiresTextAnswer && !hasAnswered && 'Type your answer and submit to buzz.'}
+              {!requiresTextAnswer && alreadyBuzzed && 'You buzzed — waiting for the host.'}
               {!requiresTextAnswer &&
-                !myEntry &&
+                !alreadyBuzzed &&
                 !quiz.buzzer.locked &&
                 'Ready — tap when you know it.'}
-              {!requiresTextAnswer && buzzer.locked && 'Buzzer locked.'}
+              {!requiresTextAnswer && !alreadyBuzzed && buzzer.locked && 'Buzzer locked.'}
             </p>
 
             {requiresTextAnswer && !hasAnswered && (!buzzer.locked || myEntry) && (

@@ -1,256 +1,390 @@
 # ⚡ QNAHUT
 
-**A cyber-futuristic platform for hosting live team quiz competitions.**
+**A cyber-futuristic platform for hosting and running live team quiz competitions.**
 
 Run quiz nights for clubs, colleges, schools, and events — no accounts, no
-cloud dependency, no per-institution lock-in. Spin up a server on your own
-laptop, share a link, and go.
+cloud dependency, no per-institution lock-in. Start the server on any laptop,
+share the link, and go. Everyone else just opens the page (or a QR code) on
+their phones.
 
 <p>
-  <img alt="node" src="https://img.shields.io/badge/node-%3E%3D22-brightgreen">
-  <img alt="stack" src="https://img.shields.io/badge/stack-Express%20%7C%20Socket.IO%20%7C%20SQLite-blue">
-  <img alt="license" src="https://img.shields.io/badge/status-active-success">
+  <img alt="node" src="https://img.shields.io/badge/node-%3E%3D18-brightgreen">
+  <img alt="stack" src="https://img.shields.io/badge/stack-React%20%7C%20Vite%20%7C%20WebSocket%20%7C%20Electron-blue">
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-success">
+  <img alt="status" src="https://img.shields.io/badge/status-active-success">
 </p>
 
----
-
-## ✨ Why QNAHUT
-
-- **Zero setup** — no env vars, no cloud accounts, no database to provision. A sqlite file is created automatically on first run.
-- **Real-time everywhere** — questions, timers, buzzers, and scores sync instantly across host, projector, and every team's phone via Socket.IO.
-- **Quick buzzer** — buzz timing is timestamped by the server, not the phone, so results are fair and millisecond-accurate.
-- **Built-in demo** — a fully seeded sample quiz at `/host/demo` so you can try every feature before building your own.
-- **Rich question types** — text, HTML (interactive/scripted), image, video, image-only, and video-only questions, each with its own marks, timer, and round.
-- **Dedicated projector view** — a chrome-free, big-screen display for Question, Timer, Buzzer, and Leaderboard, driven live from the host dashboard.
+![Landing](docs/screenshots/01-landing.png)
 
 ---
 
-## 📋 Table of Contents
+## Screenshot gallery
 
-1. [Installation](#1-installation)
-2. [Launching the server](#2-launching-the-server)
-3. [Hosting a Quiz](#3-hosting-a-quiz)
-4. [Joining as a Team](#4-joining-as-a-team)
-5. [Projector mode](#5-projector-mode)
-6. [Buzzer Mode](#6-buzzer-mode)
-7. [Environment Variables](#7-environment-variables)
-8. [Architecture](#8-architecture)
-9. [Demo Quiz](#9-demo-quiz)
-10. [Project structure](#10-project-structure)
+| Surface | Screenshot |
+|---|---|
+| New-quiz wizard | ![Setup wizard](docs/screenshots/02-wizard.png) |
+| Host dashboard | ![Host dashboard](docs/screenshots/03-host-dashboard.png) |
+| Projector — question | ![Projector question](docs/screenshots/04-projector-question.png) |
+| Projector — leaderboard | ![Projector leaderboard](docs/screenshots/05-projector-leaderboard.png) |
+| Projector — timer | ![Projector timer](docs/screenshots/06-projector-timer.png) |
+| Projector — buzzer (idle) | ![Projector buzzer](docs/screenshots/07-projector-buzzer.png) |
+| Projector — buzzer (locked) | ![Projector buzzed](docs/screenshots/08-projector-buzzer-buzzed.png) |
+| Team phone — buzzer | ![Team buzzer](docs/screenshots/09-team-buzzer.png) |
+| Team phone — buzzed | ![Team buzzed](docs/screenshots/10-team-buzzed.png) |
+| Team phone — join screen | ![Team join](docs/screenshots/11-team-join.png) |
+| Phone remote control | ![Remote control](docs/screenshots/12-remote-control.png) |
+| Remote — full-screen question | ![Remote full-screen question](docs/screenshots/13-remote-question-full.png) |
 
 ---
 
-## 1. Installation
+## ✨ Features
 
-**Requirements:** Node.js 22+
+- **Zero setup** — no env vars, no cloud accounts, no databases. `npm install` + run.
+- **Four surfaces in sync** — a control dashboard for the host, a chrome-free
+  projector screen, per-team phones with a thumb-sized buzzer, and a phone
+  remote control for the host. All of them stay in sync in real time.
+- **Millisecond-fair buzzing** — buzzes are timestamped by the server (or the
+  host device), never by the phone's own clock, so the first press wins even
+  on flaky Wi-Fi.
+- **Per-team buzzer lock** — once a team buzzes, their button locks until the
+  host resets the buzzer; optionally let multiple teams buzz per question.
+- **Rich question types** — text, image, video, image-only, video-only, and
+  custom HTML (scripts allowed) for questions; round headers, info slides, and
+  full-screen image slides for non-scored interludes.
+- **Fast scoring** — one-tap correct / partial / zero / wrong per team, custom
+  score entry, and **undo last action** — with an animated score pop on the
+  projector.
+- **Broadcast-style projector** — question, timer, buzzer order, and a live
+  leaderboard with staggered entry animation and confetti on demand.
+- **Full theming** — curated theme presets, custom colors, background image,
+  custom logo, custom buzzer sound, and font presets — exported with the quiz.
+- **Quiz packages** — export everything (questions, slides, settings, theme,
+  and every uploaded image/video) as one `.zip` to back up or move servers.
+- **Real-time everywhere** — devices sync over WebSocket + a tiny built-in HTTP
+  server; multiple quizzes can run from one server at once (unique quiz IDs).
+- **Built-in demo** — a fully populated 80-question / 8-round sample quiz you
+  can open instantly to try every feature before building your own.
+- **Desktop app** — the same app ships as a Windows desktop build (Electron)
+  with the sync server embedded, or runs as a plain Vite dev/preview server.
+
+---
+
+## 🧰 Tech stack
+
+- **React 18 + Redux Toolkit** — all UI lives in one SPA with a shared state store.
+- **Vite 5** — dev server and production build. A small dev-only plugin serves
+  the sync endpoints.
+- **`ws` (WebSocket) + native HTTP** — real-time state sync across the LAN.
+- **`qrcode`** — QR codes for team join and phone remote links.
+- **`jszip`** — quiz package export/import as `.zip`.
+- **Electron + electron-builder** — optional desktop app / installer.
+- **BroadcastChannel** — instant sync between windows on the same machine.
+
+No backend database and no sign-ups: quiz state lives in localStorage on the
+host device and is pushed to the room over the wire.
+
+---
+
+## 🚀 Getting started
+
+**Requirements:** Node.js 18+
+
+### 1. Install
 
 ```bash
 cd qnahut
 npm install
-npm run dev
 ```
 
-The server prints its local and network addresses on startup:
-
-```
-QNAHUT server is running
-------------------------
-Local:    http://localhost:3000
-Network:  http://192.168.1.42:3000
-
-Demo quiz ready -> host at /host/demo (token: demo-host-token, auto-filled)
-Demo team codes: 1001, 1002, 1003, 1004
-```
-
-Open the **Local** address on the host computer, and the **Network** address
-on every phone connected to the same Wi-Fi. No environment variables are
-required — data is stored in a SQLite file at `data/qnahut.sqlite`, created
-automatically on first run.
-
----
-
-## 2. Launching the server
+### 2. Run it
 
 ```bash
 npm run dev
 ```
 
-This starts Express (REST API + static pages) and Socket.IO (real-time
-state) on a single port — default `3000`, override with:
+This starts the Vite dev server (default `http://localhost:5173` — use
+`--port` to change it). Open it on the laptop controlling the quiz. Phones and
+the projector join through the share links/QR codes shown in the host's
+dashboard — the app auto-detects the machine's LAN address, so everything
+works on the same Wi-Fi without configuration.
+
+### 3. Desktop app (optional)
 
 ```bash
-PORT=4000 npm run dev
+npm run desktop       # build once, then open in an Electron window
+npm run desktop:dev   # dev mode: Vite + Electron with the sync server embedded
+npm run desktop:dist  # produce a Windows installer (electron-builder, NSIS)
 ```
+
+When running as the desktop app, the embedded server listens on
+`http://127.0.0.1:3000` by default (`QNAHUT_PORT` to override).
 
 ---
 
-## 3. Hosting a Quiz
+## 🖥 The screens
 
-1. Go to `/` and click **Create a quiz** (or go straight to `/host`).
-2. Walk through the setup wizard:
-   - **Basics** — quiz name, description, theme colour
-   - **Teams** — pick a team count with the stepper, then rename each team
-   - **Scoring** — set correct/wrong marks and whether partial marking is allowed
-   - **Modes** — toggle the live leaderboard and buzzer mode, set a default timer length
-   - **Questions** — add text, HTML, image, video, image-only, or video-only questions, each with its own marks, timer, round, tiebreaker setting, answer, and display options
-3. Click **Create quiz** to land on `/host/<quizId>`, your live control
-   dashboard. A host session token is stored in browser local storage, so
-   refreshing the dashboard keeps you logged in as host on that device.
+### Landing (`/`) and the setup wizard
 
-You can try all of this instantly using the bundled **demo quiz** at
-`/host/demo` — no setup required.
+![Landing](docs/screenshots/01-landing.png)
 
-### The Host dashboard
+Start a new quiz from the landing page. The wizard walks you through:
 
-| Panel | What it does |
+1. **Basics** — quiz name, description, default team count.
+2. **Teams** — rename each team; identity + scores persist by 4-digit code.
+3. **Running order** — every question/slide with its timer, round, and scoring.
+4. **Review** — a final look, then **Create quiz** lands you on the dashboard.
+
+![Wizard](docs/screenshots/02-wizard.png)
+
+### Host dashboard (`/quiz`, `?view=projector` for the mirror URL)
+
+![Host dashboard](docs/screenshots/03-host-dashboard.png)
+
+| Area | What it does |
 |---|---|
-| **Main panel** | Current question, media, timer controls (Start / Pause / Reset), question navigation |
-| **Scoring panel** | One-tap scoring per team, custom score field, **Undo last scoring action** |
-| **Projector control** | Switch the room's screen between Question, Timer, Buzzer, and Leaderboard |
-| **Question management** | Add, edit, remove, or reorder questions and their settings |
+| **Main panel** | Current question, media, timer controls (Start / Pause / Reset), next / previous question, **reveal answer**. |
+| **Scoring panel** | One-tap scoring per team for the current question, a custom score field, and **Undo last**. |
+| **Sidebar** | Per-question status, current index, team list with connection dots. |
+| **Share panel** | LAN address + QR for the join page, the projector link, and the phone remote link. |
+| **Manage running order** | Add, edit, delete, duplicate, or reorder questions and slides. |
+| **Settings** | Modes (leaderboard, buzzer, text-answer, multiple buzzes, projector widgets), theme, logo, timer default, quiz package export/import. |
+| **Remote panel** | QR link to open the phone remote. Everything is protected by the quiz's host password. |
 
-### Keyboard dhortcuts (Host Dashboard)
+**Keyboard shortcuts** (host dashboard):
 
 | Key | Action |
 |---|---|
-| `dpace` | Start / pause the timer |
+| `Space` | Start / pause the timer |
 | `N` | Next question |
 | `P` | Previous question |
 | `B` | Reset the buzzer |
 | `L` | Switch the projector to the leaderboard |
 
----
+### The projector
 
-## 4. Joining as a Team
+Open the projector link (from the Share panel) on the big screen. It's
+chrome-free and built for large displays, always mirroring what the host has
+selected. It can show:
 
-1. Open the local network address shown by the server, or scan the QR code
-   from the host's **dhare** panel — this lands on `/join`.
-2. Enter a 4-digit team code. No account, no sign-up.
-3. Land on `/team`, showing the team name, connection status, and (when
-   buzzer mode is on) a large **BUZZ** button sized for a thumb.
+- **Question** — large type plus media (or full-bleed, for image-only).
+- **Timer** — a big synchronized countdown derived from the absolute deadline,
+  so every window shows the same number.
+- **Buzzer** — "NO BUZZ YET", then a **FIRST BUZZ** announcement with the full
+  buzz order and a synthesized (or custom) sound.
+- **Answers** — reveal the answer; on timer end the host can flash **TIME'S UP**.
+- **Leaderboard** — ranked list with staggered entry animation and optional
+  confetti.
 
-Reconnecting after a dropped Wi-Fi signal automatically restores the team's
-identity, as long as the same browser tab/session is used.
+![Projector question](docs/screenshots/04-projector-question.png)
 
----
+![Projector leaderboard](docs/screenshots/05-projector-leaderboard.png)
 
-## 5. Projector mode
+### Team phones
 
-Open `/projector/<quizId>` on the machine connected to your projector or TV.
-It's chrome-free and built for large screens, always showing exactly what
-the host has selected:
+![Team join](docs/screenshots/11-team-join.png)
 
-- **Question** — large type, question text and media (or a full-bleed image with no UI, for image-only questions)
-- **Timer** — a large synchronized countdown
-- **Buzzer** — "NO BUZZ YET" until a team buzzes, then a "FIRST BUZZ" announcement and the full buzz order
-- **Leaderboard** — broadcast-style ranked list with staggered entry animation
+Teams open the link (or scan the QR) from the Share panel and type their
+4-digit code on `/join` — no account, no sign-up. They land on `/team`:
 
-Every connected projector updates immediately when the host switches views.
+- A large, thumb-sized **BUZZ** button; the button locks once the team buzzes
+  (`YOU BUZZED FIRST` / `BUZZER LOCKED` / `TOO LATE`).
+- In text-answer mode, a text field replaces the buzzer button.
+- Reconnecting after a dropped connection restores the team's identity as long
+  as the same browser tab/session is used.
 
----
+![Team buzzer](docs/screenshots/09-team-buzzer.png)
 
-## 6. Buzzer Mode
+![Team buzzed](docs/screenshots/10-team-buzzed.png)
 
-1. The host enables **Buzzer mode** during setup (or later).
-2. Each team gets a unique 4-digit code from the host's Share panel.
-3. Pressing **BUZZ** sends a request the server timestamps itself — never
-   trusting the phone's own clock.
-4. The **first accepted buzz** locks the buzzer for everyone else and
-   broadcasts instantly:
-   - Buzzing team sees **YOU BUZZED FIRST**
-   - Everyone else sees **TOO LATE** or **BUZZER LOCKED**
-5. The host reviews the full buzz order, then presses **Reset buzzer**
-   (`B`) before the next question.
+### Phone remote control
 
-`multiBuzzRecorded` (on by default) keeps recording buzzes after the lock,
-so the host can see the complete order, not just the winner. Team answers
-are submitted once per buzzer round and can't be replaced until the host
-resets the buzzer or advances the question.
+![Remote control](docs/screenshots/12-remote-control.png)
 
----
+The host can drive the quiz from their phone: open `/remote` (link/QR from the
+dashboard, password-protected) and you get icon-only controls to
 
-## 7. Environment Variables
+- start / pause / reset the timer,
+- next / previous question,
+- reset the buzzer and Reveal the answer,
+- jump the projector to any view (buzzer, leaderboard, answers),
+- and push the current question to full screen for the room.
 
-None are required. Optional:
-
-| Variable | Description |
-|---|---|
-| `PORT` | Port to listen on (default `3000`) |
-| `QNAHUT_PUBLIC_URL` | Public base URL for QR/share links (e.g. `http://192.168.1.42:3000`); otherwise the server auto-detects its LAN IP |
+![Remote full-screen question](docs/screenshots/13-remote-question-full.png)
 
 ---
 
-## 8. Architecture
+## 📝 Question & slide types
+
+| Type | Scored? | Notes |
+|---|---|---|
+| Text question | ✅ | Text with optional media. |
+| Image question / Video question | ✅ | Uploaded file + optional text. |
+| Image-only / Video-only | ✅ | Full-bleed media, no question text. |
+| Custom HTML | ✅ | Anything goes — embeds, animations, `<script>` runs on the projector. |
+| Round header (slide) | ❌ | Title + body, e.g. "Round 2 — Picture round". |
+| Info slide | ❌ | Non-scored title + body. |
+| Full-screen image slide | ❌ | A pure image interludes between rounds. |
+
+Every scored question has its own timer, round number + round name, and
+scoring (correct / partial / wrong / zero points, plus an **allow partial**
+toggle). Images and HTML can also be flagged to display full screen on the projector.
+
+---
+
+## ⏱ Buzzer mode
+
+1. The host enables **buzzer mode** in Settings (or leaves it on from the demo).
+2. Each team gets their buzzer on `/team`.
+3. Pressing **BUZZ** sends a request that the server/host device timestamps
+   itself — never trusting the phone's clock.
+4. The first accepted buzz locks everyone else's buzzer immediately and
+   broadcasts the order: first buzz → green + sound, rest → locked.
+5. **Per-team lock:** the team that buzzed can't buzz again until the host
+   resets the buzzer (`B`) or moves on — even with **Allow multiple teams to
+   buzz** enabled, so nobody double-buzzes.
+6. The host reviews the buzz order and scores, then resets.
+
+Optional toggle: **Require a text answer instead of a buzzer button** — teams
+type their answer instead of buzzing.
+
+---
+
+## 🏆 Scoring
+
+- One-tap **+correct**, **+partial** (when enabled), **0**, or **wrong** buttons
+  per team — the points come straight from the question's settings.
+- **Custom** score field for anything else (bonus, penalty, appeal).
+- **Undo last** reverts the most recent scoring event in one click.
+- Snippets of the leaderboard float on the projector, with a scale-and-color
+  pop whenever a score changes, and **confetti** you can trigger when a team
+  takes the lead.
+
+---
+
+## 🎨 Themes & branding
+
+Pick a preset (Cyber Arena, Neon Noir, Deep Ocean, …) or craft your own in the
+theme editor: every surface color, fonts, corner radius, a background image,
+your quiz logo, and a custom buzzer sound (or use the built-in synthesized
+tone). Themes are stored with the quiz and travel with a quiz package export.
+
+---
+
+## 📦 Quiz packages
+
+**Export** — the Settings panel downloads everything as one `.zip`: questions,
+slides, modes, theme, logo, and every uploaded image/video (as data URLs), so
+you can back up or relocate a quiz. **Import** loads a package back in one
+step, including its theme.
+
+There's also a script that pre-builds the bundled demo quiz as a package:
+
+```bash
+npm run demo:package
+```
+
+---
+
+## 🎲 Demo quiz
+
+The app ships fully seeded — open it instantly to try every feature:
+
+- **Quiz ID:** `demo`
+- **Host:** open `/quiz?demo=1` (auto-fills the host token)
+- **Team codes:** `1001` Team Alpha · `1002` Team Nova · `1003` Team Vector · `1004` Team Omega
+- **Projector/team/remote:** use the share links from the dashboard
+- **Content:** 80 questions across 8 rounds (text, image, video-only, HTML, …)
+  with mixed positive/negative/partial scoring and slides.
+
+---
+
+## 🔌 Sync architecture
 
 ```
-Host computer
-  └─ QNAHUT server (Express + Socket.IO + SQLite)
-       ├─ REST API   → quiz/question setup, joining, QR codes
-       └─ docket.IO  → live state: questions, timer, buzzer, scores
-              │
-              ├─ Host dashboard   (/host/:quizId)
-              ├─ Projector view   (/projector/:quizId)
-              └─ Team buzzer      (/team, joined via /join)
+Host machine
+  └─ the app (Vite dev server, or Electron desktop)
+       └─ tiny built-in server (HTTP + WebSocket)
+              ├─ /__qnahut-host        → advertises the LAN address
+              ├─ /__qnahut-active      → list of live quizzes
+              ├─ /__qnahut-quiz/:id    → snapshot hydration for late joiners
+              └─ /__qnahut-ws          → real-time state channel
+                     │
+                     ├─ Host dashboard (the source of truth)
+                     ├─ Projector mirror(s)   (open the ?view=projector URL)
+                     ├─ Team phones           (/join → /team)
+                     └─ Phone remote          (/remote · password protected)
 ```
 
-| File | Responsibility |
-|---|---|
-| `server/db.js` | SQLite schema and connection (quizzes, teams, questions, score_events, buzzer_events) |
-| `server/state.js` | Authoritative in-memory quiz state — every score, buzz, and question change flows through here, applied in memory for instant reads and persisted to SQLite |
-| `server/socket.js` | Real-time Socket.IO handling: buzzer logic/locking, synchronized timer loop, question navigation, score broadcasts. The server is authoritative — clients only render what they're told |
-| `server/routes.js` | REST endpoints for quiz/question creation, media upload, team joining, QR generation, read-only hydration |
-| `server/seed.js` | Seeds the bundled demo quiz (`id: demo`) on first boot |
-| `public/` | Static frontend — shared cyber-futuristic design system (`css/style.css`) plus one HTML/CSS/JS bundle per surface (landing, host, projector, join, team) |
-
-### Real-time events (non-exhaustive)
-
-`room:join`, `state:sync`, `question:next` / `question:prev` / `question:goto` / `question:changed`, `timer:start` / `timer:pause` / `timer:reset` / `timer:tick`, `buzzer:buzz` / `buzzer:result` / `buzzer:update` / `buzzer:reset`, `score:apply` / `score:undo` / `score:changed`, `leaderboard:updated`, `team:connected` / `team:disconnected`, `projector:setView` / `projector:view`
-
----
-
-## 9. Demo Quiz
-
-Bundled automatically — no setup required:
-
-- **Host:** `/host/demo`
-- **Team codes:** `1001` (Team Alpha), `1002` (Team Nova), `1003` (Team Vector), `1004` (Team Omega)
-- **Projector:** `/projector/demo`
-- 8 sample questions covering text, image, image-only, video, and negative/partial marking
+- The host keeps the authoritative quiz state in memory + localStorage and
+  pushes snapshots out over a WebSocket channel.
+- Windows on the same machine also sync instantly via **BroadcastChannel**,
+  with a WebSocket tap merged in for LAN devices.
+- Receivers derive the display from absolute timestamps (e.g. the timer counts
+  down from a deadline, never from a stored "remaining" value) so laggy or
+  stale connections can't show a different clock.
+- Buzzer events are stamped by the server to stay fair, then merged from the
+  WebSocket tap. The projector deep-links with a token so random visitors can't
+  connect.
+- A quiz stays unique via its **quiz ID** — you can host several different
+  quizzes from one server and each keeps its own teams, scores, and projector.
 
 ---
 
-## 10. Project structure
+## 🗂 Project structure
 
 ```
 qnahut/
 ├── package.json
-├── data/                      # SQLite database (created on first run)
-├── server/
-│   ├── index.js               # Express + Socket.IO entry point
-│   ├── db.js                  # SQLite schema
-│   ├── state.js               # Authoritative in-memory quiz state
-│   ├── socket.js               # Real-time event handlers
-│   ├── routes.js               # REST API
-│   └── seed.js                 # Demo quiz seed data
-└── public/
-    ├── index.html              # Landing page
-    ├── host.html                # Setup wizard + control dashboard
-    ├── projector.html          # Broadcast / projector view
-    ├── join.html                # Team join screen
-    ├── team.html                # Team buzzer screen
-    ├── css/                     # style.css (design system) + per-page styles
-    ├── js/                      # shared.js + per-page client logic
-    ├── img/                     # demo placeholder images
-    └── uploads/                 # host-uploaded question media (created at runtime)
+├── vite.config.js              # dev server + sync plugin (HTTP + WebSocket)
+├── electron/
+│   └── main.cjs                # desktop shell + embedded sync server (port 3000)
+├── scripts/
+│   └── make-demo-package.mjs   # demo quiz → .zip package
+├── docs/screenshots/           # README screenshots
+├── demo/                       # build output of the demo quiz package
+└── src/
+    ├── main.jsx                # entry → App
+    ├── App.jsx                 # routes / landing / host / projector / team / remote
+    ├── contexts/               # QuizContext, NavigationContext, ThemeContext
+    ├── store/                  # Redux store
+    ├── utils/                  # sync (ws + BroadcastChannel), quizPackage, quizFactory, theme
+    ├── data/                   # demoQuiz.js, defaultTheme.js
+    ├── hooks/                  # useHostShortcuts, etc.
+    └── components/
+        ├── common/             # Button, Modal, Panel, MediaUpload, QuestionForm…
+        ├── landing/            # Landing page
+        ├── wizard/             # Basics → Teams → Running order → Review
+        ├── host/               # HostDashboard + MainPanel/ScoringPanel/Sidebar/
+        │                       # SharePanel/QuestionManager/SettingsPanel/RemotePanel
+        ├── projector/          # Projector + per-view widgets
+        ├── team/               # /join and /team screens
+        └── remote/             # RemoteControl
 ```
+
+---
+
+## 🛠 npm scripts
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Vite dev server (default port 5173, add `--port <n>` to change) |
+| `npm run build` | Production build to `dist/` |
+| `npm run preview` | Preview the production build |
+| `npm run desktop` | `build` then launch the Electron app |
+| `npm run desktop:dev` | Vite + Electron together (hot, with embedded server) |
+| `npm run desktop:dist` | Build a Windows installer (`release/`) |
+| `npm run demo:package` | Write the demo quiz as a `.zip` package |
+| `npm run lint` | ESLint (warnings fail) |
+| `npm run format` | Prettier write |
+| `npm run format:check` | Prettier check |
 
 ---
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome. If you spot a bug or have an idea for
-a feature, open an issue on the [GitHub repo](https://github.com/vighneshn2008/qnahut).
+Issues and pull requests are welcome. If you spot a bug or have an idea for a
+feature, open an issue on the [GitHub repo](https://github.com/vighneshn2008/qnahut).
 
 ## 📄 License
 
-No license file is currently specified in this repository.
+MIT.

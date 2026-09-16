@@ -200,6 +200,17 @@ export function publishNetworkQuizSnapshot(quiz) {
   pendingNetworkQuiz = quiz;
   if (isPublishingNetworkQuiz) return;
 
+  // The host tab and the remote controller (/remote) own authoritative quiz
+  // state (navigation, scoring, teams, timer). Team/join tabs are guests: the
+  // server only folds their buzzer events into the host's snapshot instead of
+  // overwriting it.
+  const origin =
+    window.location.pathname === '/host' ||
+    window.location.pathname === '/quiz' ||
+    window.location.pathname === '/remote'
+      ? 'host'
+      : 'guest';
+
   isPublishingNetworkQuiz = true;
   networkPublishQueue = networkPublishQueue
     .then(async () => {
@@ -216,8 +227,9 @@ export function publishNetworkQuizSnapshot(quiz) {
           body: JSON.stringify(snapshot),
         };
         const token = encodeURIComponent(snapshot.accessToken || '');
-        await fetch(`/__qnahut-quiz/${encodeURIComponent(snapshot.id)}?token=${token}`, request);
-        await fetch(`/__qnahut-active?token=${token}`, request);
+        const params = `?token=${token}&origin=${origin}`;
+        await fetch(`/__qnahut-quiz/${encodeURIComponent(snapshot.id)}${params}`, request);
+        await fetch(`/__qnahut-active${params}`, request);
       }
     })
     .catch(() => {})

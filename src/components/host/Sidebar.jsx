@@ -39,30 +39,9 @@ export default function Sidebar() {
 
   function handleRemoveTeam(teamId) {
     if (quiz.teams.length <= 1) return;
-    const nextTeams = quiz.teams.filter((team) => team.id !== teamId);
-    const remainingIds = new Set(nextTeams.map((team) => team.id));
-    updateTeams(nextTeams);
-    const nextBuzzOrder = quiz.buzzer.order.filter((entry) => remainingIds.has(entry.teamId));
-    const nextAnswers = Object.fromEntries(
-      Object.entries(quiz.buzzer.answers).filter(([id]) => remainingIds.has(id)),
-    );
-    const nextQuiz = {
-      ...quiz,
-      teams: nextTeams,
-      buzzer: { ...quiz.buzzer, order: nextBuzzOrder, answers: nextAnswers },
-    };
-    if (JSON.stringify(nextQuiz) !== JSON.stringify(quiz)) {
-      // The reducer is intentionally updated via updateTeams; this branch keeps this component
-      // in sync with any stale buzzer state while the host works live.
-      const nextState = {
-        ...quiz,
-        teams: nextTeams,
-        buzzer: { ...quiz.buzzer, order: nextBuzzOrder, answers: nextAnswers },
-      };
-      updateTeams(nextTeams);
-      // No direct in-component mutation of quiz state is needed here because the reducer handles the update.
-      return nextState;
-    }
+    // UPDATE_TEAMS in the reducer also prunes this team's buzzer order entry
+    // and any text answer, so a single dispatch keeps every slice in sync.
+    updateTeams(quiz.teams.filter((team) => team.id !== teamId));
   }
 
   return (

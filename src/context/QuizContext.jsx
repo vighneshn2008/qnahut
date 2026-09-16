@@ -39,6 +39,7 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
   const quiz = useSelector(selectQuiz);
   const dispatch = useDispatch();
   const isHostRoute = window.location.pathname === '/host' || window.location.pathname === '/quiz';
+  const isRemoteControllerRoute = window.location.pathname === '/remote';
 
   const channelRef = useRef(null);
   const channelIdRef = useRef(null);
@@ -156,34 +157,66 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
     };
   }, [dispatch, isHostRoute, isRemoteMirror, quiz?.accessToken, quiz?.id, updatePresence]);
 
+  // The host subscribes too: it needs to ingest buzzer events that team
+  // phones publish to the server (the server merges those into the host's
+  // own snapshot). Applying the echo of the host's own publish is harmless —
+  // the content guard above stops any republish, and keepLocalTimer/-Buzzer
+  // in the reducer protect transient local decisions.
   useEffect(() => {
     if (!isHostRoute || !quiz?.id) return undefined;
-    const socket = openQuizWebSocket(quiz.id, quiz.accessToken, () => {}, updatePresence);
+    const socket = openQuizWebSocket(
+      quiz.id,
+      quiz.accessToken,
+      (snapshot) => {
+        if (quizSnapshotsDiffer(snapshot, quizRef.current)) {
+          dispatch({ type: 'LOAD_QUIZ', payload: snapshot });
+        }
+      },
+      updatePresence,
+    );
     return () => socket?.close();
-  }, [isHostRoute, quiz?.accessToken, quiz?.id, updatePresence]);
+  }, [dispatch, isHostRoute, quiz?.accessToken, quiz?.id, updatePresence]);
 
   // Every time the quiz changes, persist a snapshot and tell any other
   // window watching this quiz id. A remote mirror echoes what it receives
   // right back out, which is harmless (same payload, no-op for the host).
+  //
+  // Promotions (navigating, scoring) happen on the host once and converge
+  // because the server stamps revisions; without the guard below a guest
+  // that receives its own echo would re-publish forever (server → broadcast
+  // → LOAD_QUIZ → publish → server…). We only publish when the *content*
+  // actually changed — revision stamps and timer ticks are not content.
   useEffect(() => {
     if (!quiz || isRemoteMirror) return;
     const previousQuiz = publishedQuizRef.current;
-    publishedQuizRef.current = quiz;
-    const comparableQuiz = (value) => ({
+    const comparableContent = (value) => ({
       ...value,
+      syncRevision: 0,
+      timerRevision: 0,
+      buzzerRevision: 0,
+      buzzerEpoch: 0,
       timer: null,
       teams: value.teams?.map((team) => ({ ...team, connected: false })),
     });
-    const timerOnlyUpdate =
-      previousQuiz &&
-      previousQuiz.id === quiz.id &&
+    // A revision-stamped echo of our own broadcast has identical content;
+    // publishing it back would loop forever. Only republish when the
+    // *content* actually changed. `endsAt` is the one timer property that is
+    // shared with mirrors (they tick the countdown locally), so a timer
+    // start/stop counts as content; steady per-second ticks do not.
+    const isContentEcho =
+      previousQuiz?.id === quiz.id &&
       previousQuiz.timer?.endsAt === quiz.timer?.endsAt &&
-      JSON.stringify(comparableQuiz(previousQuiz)) === JSON.stringify(comparableQuiz(quiz));
-    if (timerOnlyUpdate) return;
+      JSON.stringify(comparableContent(previousQuiz)) === JSON.stringify(comparableContent(quiz));
+    publishedQuizRef.current = quiz;
+    if (isContentEcho) return;
     persistQuizSnapshot(quiz);
     publishNetworkQuizSnapshot(quiz);
-    broadcastQuizSnapshot(channelRef.current, quiz);
-  }, [isRemoteMirror, quiz]);
+    // Only host-class routes (host dashboard + /remote controller) broadcast
+    // to the room's BroadcastChannel. A team guest must never push its
+    // (possibly stale) snapshot into host/mirror windows on the same machine
+    // — guest events reach the host via the server merge.
+    if (isHostRoute || isRemoteControllerRoute) broadcastQuizSnapshot(channelRef.current, quiz);
+  }, [isHostRoute, isRemoteControllerRoute, isRemoteMirror, quiz]);
 
   useEffect(() => () => channelRef.current?.close(), []);
 
@@ -192,9 +225,25 @@ function QuizStateProvider({ children, deepLink, isRemoteMirror }) {
   // drifts out of sync, even for state that a click affects only visually.
   const syncNow = useCallback(() => {
     if (!quiz) return;
+    const comparableContent = (value) => ({
+      ...value,
+      syncRevision: 0,
+      timerRevision: 0,
+      buzzerRevision: 0,
+      buzzerEpoch: 0,
+      timer: null,
+      teams: value.teams?.map((team) => ({ ...team, connected: false })),
+    });
+    const previousQuiz = publishedQuizRef.current;
+    const isContentEcho =
+      previousQuiz?.id === quiz.id &&
+      previousQuiz.timer?.endsAt === quiz.timer?.endsAt &&
+      JSON.stringify(comparableContent(previousQuiz)) === JSON.stringify(comparableContent(quiz));
+    publishedQuizRef.current = quiz;
+    if (isContentEcho) return;
     persistQuizSnapshot(quiz);
-    broadcastQuizSnapshot(channelRef.current, quiz);
-  }, [quiz]);
+    if (isHostRoute || isRemoteControllerRoute) broadcastQuizSnapshot(channelRef.current, quiz);
+  }, [isHostRoute, isRemoteControllerRoute, quiz]);
 
   const actions = useMemo(
     () => ({

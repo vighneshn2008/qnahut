@@ -9,6 +9,7 @@ import Sidebar from './Sidebar.jsx';
 import SharePanel from './SharePanel.jsx';
 import QuestionManager from './QuestionManager.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
+import RemotePanel from './RemotePanel.jsx';
 import Button from '../common/Button.jsx';
 import Panel from '../common/Panel.jsx';
 
@@ -143,6 +144,7 @@ export default function HostDashboard() {
         <div className="stack gap-md">
           <Sidebar />
           <SharePanel />
+          <RemotePanel />
           <Button variant="ghost" icon={Settings} block onClick={() => setShowSettings(true)}>
             Quiz settings
           </Button>

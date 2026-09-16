@@ -46,6 +46,53 @@ function localHostPlugin() {
     return { ...snapshot, syncRevision: nextRevision };
   }
 
+  /**
+   * Folds a guest's buzzer activity (buzzes + text answers) into the stored
+   * snapshot without letting the guest overwrite the host's authoritative
+   * fields (question index, timer, teams, scores). Returns the stored
+   * snapshot unchanged when there is nothing new to merge, so an echo of the
+   * host's own state never triggers another round of broadcasts.
+   */
+  function mergeBuzzerInto(existing, incoming) {
+    if (!existing) return incoming;
+    const existingBuzzer = existing.buzzer || { locked: false, order: [], answers: {} };
+    const incomingBuzzer = incoming.buzzer || {};
+    const incomingOrder = incomingBuzzer.order || [];
+    const incomingEpoch = incomingBuzzer.buzzerEpoch || 0;
+    if (incomingEpoch < (existingBuzzer.buzzerEpoch || 0)) return existing;
+    const order = [...(existingBuzzer.order || [])];
+    const known = new Set(order.map((entry) => entry.teamId));
+    let changed = false;
+    for (const entry of incomingOrder) {
+      if (!known.has(entry.teamId)) {
+        order.push(entry);
+        known.add(entry.teamId);
+        changed = true;
+      }
+    }
+    const answers = { ...(existingBuzzer.answers || {}) };
+    for (const [teamId, text] of Object.entries(incomingBuzzer.answers || {})) {
+      if (answers[teamId] === undefined) {
+        answers[teamId] = text;
+        changed = true;
+      }
+    }
+    if (!changed) return existing;
+    return {
+      ...existing,
+      buzzer: {
+        ...existingBuzzer,
+        order,
+        answers,
+        locked:
+          (incomingOrder.length > 0 && incomingBuzzer.locked === true) ||
+          Boolean(existingBuzzer.locked),
+        buzzerEpoch: Math.max(existingBuzzer.buzzerEpoch || 0, incomingEpoch),
+        buzzerRevision: Math.max(existingBuzzer.buzzerRevision || 0, incomingBuzzer.buzzerRevision || 0),
+      },
+    };
+  }
+
   function attachWebSocketServer(httpServer) {
     if (!httpServer || httpServer.__qnahutWebSocketServer) return;
     const websocketServer = new WebSocketServer({ noServer: true });
@@ -105,19 +152,32 @@ function localHostPlugin() {
         _req.on('end', () => {
           try {
             const nextActiveQuiz = JSON.parse(body);
-            if (
-              activeQuiz &&
-              (nextActiveQuiz.buzzerEpoch || 0) < (activeQuiz.buzzerEpoch || 0)
-            ) {
-              res.end(JSON.stringify({ ok: true, ignored: true }));
-              return;
-            }
-            activeQuiz = stampSnapshot(nextActiveQuiz);
-            if (activeQuiz && !isAuthorized(activeQuiz, requestUrl.searchParams.get('token'))) {
+            const accessToken = requestUrl.searchParams.get('token');
+            // Authorize before touching any stored state.
+            if (activeQuiz && !isAuthorized(activeQuiz, accessToken)) {
               res.statusCode = 401;
               res.end(JSON.stringify({ error: 'Invalid quiz access token.' }));
               return;
             }
+            const isGuest = requestUrl.searchParams.get('origin') !== 'host';
+            let storedQuiz;
+            if (isGuest && activeQuiz) {
+              storedQuiz = mergeBuzzerInto(activeQuiz, nextActiveQuiz);
+              if (storedQuiz === activeQuiz) {
+                res.end(JSON.stringify({ ok: true, ignored: true }));
+                return;
+              }
+            } else {
+              storedQuiz = nextActiveQuiz;
+            }
+            if (
+              activeQuiz &&
+              (storedQuiz.buzzerEpoch || 0) < (activeQuiz.buzzerEpoch || 0)
+            ) {
+              res.end(JSON.stringify({ ok: true, ignored: true }));
+              return;
+            }
+            activeQuiz = stampSnapshot(storedQuiz);
             broadcastQuiz(activeQuiz);
             res.end(JSON.stringify({ ok: true }));
           } catch {
@@ -158,13 +218,15 @@ function localHostPlugin() {
       });
       _req.on('end', () => {
         try {
-          const snapshot = stampSnapshot(JSON.parse(body));
+          const incoming = JSON.parse(body);
           const accessToken = requestUrl.searchParams.get('token');
           const existingSnapshot = quizSnapshots.get(quizId);
           if (
-            !snapshot.accessToken ||
-            snapshot.id !== quizId ||
-            (existingSnapshot && existingSnapshot.accessToken && !isAuthorized(existingSnapshot, accessToken))
+            !incoming.accessToken ||
+            incoming.id !== quizId ||
+            (existingSnapshot &&
+              existingSnapshot.accessToken &&
+              !isAuthorized(existingSnapshot, accessToken))
           ) {
             res.statusCode = 401;
             res.end(JSON.stringify({ error: 'Invalid quiz access token.' }));
@@ -172,11 +234,21 @@ function localHostPlugin() {
           }
           if (
             existingSnapshot &&
-            (snapshot.buzzerEpoch || 0) < (existingSnapshot.buzzerEpoch || 0)
+            (incoming.buzzerEpoch || 0) < (existingSnapshot.buzzerEpoch || 0)
           ) {
             res.end(JSON.stringify({ ok: true, ignored: true }));
             return;
           }
+          const isGuest = requestUrl.searchParams.get('origin') !== 'host';
+          let storedSnapshot = incoming;
+          if (isGuest && existingSnapshot) {
+            storedSnapshot = mergeBuzzerInto(existingSnapshot, incoming);
+            if (storedSnapshot === existingSnapshot) {
+              res.end(JSON.stringify({ ok: true, ignored: true }));
+              return;
+            }
+          }
+          const snapshot = stampSnapshot(storedSnapshot);
           quizSnapshots.set(quizId, snapshot);
           activeQuiz = snapshot;
           broadcastQuiz(snapshot);

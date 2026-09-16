@@ -6,6 +6,14 @@ dist/
 dist-ssr/
 release/
 
+# Generated demo package
+demo/
+
+# Dev server artifacts
+dev-server.log
+dev-server.err.log
+dev-server.pid
+
 # Env
 .env
 .env.local

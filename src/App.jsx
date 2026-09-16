@@ -10,6 +10,7 @@ import HostDashboard from './components/host/HostDashboard.jsx';
 import Projector from './components/projector/Projector.jsx';
 import Join from './components/join/Join.jsx';
 import Team from './components/team/Team.jsx';
+import RemoteControl from './components/remote/RemoteControl.jsx';
 
 function ViewRouter() {
   const { view } = useNavigation();
@@ -37,6 +38,9 @@ function ViewRouter() {
       break;
     case VIEWS.PROJECTOR:
       Screen = Projector;
+      break;
+    case VIEWS.REMOTE:
+      Screen = RemoteControl;
       break;
     case VIEWS.JOIN:
       Screen = Join;

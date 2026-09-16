@@ -8,18 +8,21 @@ export const VIEWS = {
   PROJECTOR: 'projector',
   JOIN: 'join',
   TEAM: 'team',
+  REMOTE: 'remote',
 };
 
 const NavigationContext = createContext(null);
 
 function viewForPath(pathname, search = '') {
   if (pathname === '/quiz' || pathname === '/host') return VIEWS.HOST;
+  if (pathname === '/remote') return VIEWS.REMOTE;
   if (pathname === '/team' && new URLSearchParams(search).get('joined') === '1') return VIEWS.TEAM;
   if (pathname === '/team' || pathname === '/join') return VIEWS.JOIN;
   return VIEWS.LANDING;
 }
 
 function pathForView(view) {
+  if (view === VIEWS.REMOTE) return '/remote';
   if (view === VIEWS.JOIN) return '/team';
   if (view === VIEWS.TEAM) {
     const params = new URLSearchParams(window.location.search);

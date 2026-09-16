@@ -46,12 +46,12 @@ export default function Team() {
   }
 
   function handleBuzz() {
-    buzz(team.id, performance.now());
+    buzz(team.id, Date.now());
   }
 
   function handleSubmitAnswer(event) {
     event.preventDefault();
-    submitTeamAnswer(team.id, answerDraft, performance.now());
+    submitTeamAnswer(team.id, answerDraft, Date.now());
   }
 
   return (

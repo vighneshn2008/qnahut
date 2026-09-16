@@ -174,9 +174,19 @@ export default function Projector() {
       view = <AnswerView />;
       break;
     case 'question':
-    default:
-      view = <QuestionView />;
+    default: {
+      const currentQuestion = quiz.questions[quiz.currentQuestionIndex];
+      // "Reveal answer when timer ends": the projector flips to the answer
+      // automatically the moment the countdown reaches zero. Display-only —
+      // quiz state is left untouched; when the host restarts the timer or
+      // clears it the question view comes back on its own.
+      const autoRevealAnswer =
+        currentQuestion?.showAnswer === 'on-timer-end' &&
+        quiz.timer &&
+        timerSeconds(quiz.timer) === 0;
+      view = autoRevealAnswer ? <AnswerView /> : <QuestionView />;
       break;
+    }
   }
 
   return (

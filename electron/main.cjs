@@ -54,6 +54,56 @@ function startLocalServer() {
     return { ...snapshot, syncRevision: nextRevision };
   }
 
+  /**
+   * Folds a guest's buzzer activity (buzzes + text answers) into the stored
+   * snapshot without letting the guest overwrite the host's authoritative
+   * fields (question index, timer, teams, scores). Returns the stored
+   * snapshot unchanged when there is nothing new to merge, so an echo of the
+   * host's own state never triggers another round of broadcasts.
+   */
+  function mergeBuzzerInto(existing, incoming) {
+    if (!existing) return incoming;
+    const existingBuzzer = existing.buzzer || { locked: false, order: [], answers: {} };
+    const incomingBuzzer = incoming.buzzer || {};
+    const incomingOrder = incomingBuzzer.order || [];
+    const incomingEpoch = incomingBuzzer.buzzerEpoch || 0;
+    if (incomingEpoch < (existingBuzzer.buzzerEpoch || 0)) return existing;
+    const order = [...(existingBuzzer.order || [])];
+    const known = new Set(order.map((entry) => entry.teamId));
+    let changed = false;
+    for (const entry of incomingOrder) {
+      if (!known.has(entry.teamId)) {
+        order.push(entry);
+        known.add(entry.teamId);
+        changed = true;
+      }
+    }
+    const answers = { ...(existingBuzzer.answers || {}) };
+    for (const [teamId, text] of Object.entries(incomingBuzzer.answers || {})) {
+      if (answers[teamId] === undefined) {
+        answers[teamId] = text;
+        changed = true;
+      }
+    }
+    if (!changed) return existing;
+    return {
+      ...existing,
+      buzzer: {
+        ...existingBuzzer,
+        order,
+        answers,
+        locked:
+          (incomingOrder.length > 0 && incomingBuzzer.locked === true) ||
+          Boolean(existingBuzzer.locked),
+        buzzerEpoch: Math.max(existingBuzzer.buzzerEpoch || 0, incomingEpoch),
+        buzzerRevision: Math.max(
+          existingBuzzer.buzzerRevision || 0,
+          incomingBuzzer.buzzerRevision || 0,
+        ),
+      },
+    };
+  }
+
   localServer = http.createServer((request, response) => {
     const requestUrl = new URL(request.url, `http://${request.headers.host}`);
     const pathname = requestUrl.pathname;
@@ -79,8 +129,17 @@ function startLocalServer() {
               response.end(JSON.stringify({ ok: true, ignored: true }));
               return;
             }
-            activeQuiz = stampSnapshot(quiz);
-            broadcastQuiz(quiz);
+            const isGuest = requestUrl.searchParams.get('origin') !== 'host';
+            let storedQuiz = quiz;
+            if (isGuest && activeQuiz) {
+              storedQuiz = mergeBuzzerInto(activeQuiz, quiz);
+              if (storedQuiz === activeQuiz) {
+                response.end(JSON.stringify({ ok: true, ignored: true }));
+                return;
+              }
+            }
+            activeQuiz = stampSnapshot(storedQuiz);
+            broadcastQuiz(activeQuiz);
             response.end(JSON.stringify({ ok: true }));
           },
           response,
@@ -129,7 +188,16 @@ function startLocalServer() {
               response.end(JSON.stringify({ ok: true, ignored: true }));
               return;
             }
-            const stampedQuiz = stampSnapshot(quiz);
+            const isGuest = requestUrl.searchParams.get('origin') !== 'host';
+            let storedQuiz = quiz;
+            if (isGuest && existingSnapshot) {
+              storedQuiz = mergeBuzzerInto(existingSnapshot, quiz);
+              if (storedQuiz === existingSnapshot) {
+                response.end(JSON.stringify({ ok: true, ignored: true }));
+                return;
+              }
+            }
+            const stampedQuiz = stampSnapshot(storedQuiz);
             quizSnapshots.set(quizId, stampedQuiz);
             activeQuiz = stampedQuiz;
             broadcastQuiz(stampedQuiz);

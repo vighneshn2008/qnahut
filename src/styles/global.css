@@ -258,6 +258,54 @@ a {
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-bg-void) 35%, transparent);
 }
 
+/* Frameless Electron window: the topbar acts as the title bar drag region. */
+.topbar {
+  -webkit-app-region: drag;
+}
+
+.topbar button,
+.topbar input,
+.topbar select,
+.topbar label,
+.topbar textarea,
+.topbar a {
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-bg-raised);
+}
+
+.titlebar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.titlebar-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-border);
+}
+
+.titlebar-btn-close:hover {
+  color: #ffffff;
+  background: #e81123;
+}
+
 .landing-proof {
   margin-top: 30px;
   color: var(--color-text-muted);
@@ -1185,6 +1233,13 @@ a {
   backdrop-filter: blur(14px) saturate(1.4);
   border-bottom: 1px solid color-mix(in srgb, var(--color-accent-primary) 20%, transparent);
   text-align: left;
+  -webkit-app-region: drag;
+}
+
+.projector-header button,
+.projector-header a,
+.projector-header__live {
+  -webkit-app-region: no-drag;
 }
 
 .projector-header__logo {

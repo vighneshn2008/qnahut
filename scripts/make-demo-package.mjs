@@ -86,11 +86,11 @@ function isRemoteUrl(value) {
 
 async function main() {
   const quiz = createDemoQuiz();
-  const preset = THEME_PRESETS.find((p) => p.name === 'Deep Ocean') || THEME_PRESETS[0];
+  const preset = THEME_PRESETS.find((p) => p.name === 'Ocean') || THEME_PRESETS[0];
 
   const theme = mergeTheme({
     ...preset,
-    name: 'Deep Ocean Demo',
+    name: 'Ocean Demo',
     backgroundImage: svgDataUrl(
       '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">' +
         '<defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1">' +

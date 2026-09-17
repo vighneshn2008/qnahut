@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -8,6 +8,7 @@ const { WebSocketServer } = require('ws');
 const isDev = process.env.NODE_ENV === 'development';
 const devUrl = process.env.QNAHUT_DEV_URL || 'http://127.0.0.1:5173';
 const appPort = Number(process.env.QNAHUT_PORT || 3000);
+const appIcon = path.join(__dirname, '..', 'build', 'icon.ico');
 let localServer;
 
 function localHostAddress() {
@@ -297,6 +298,24 @@ function contentType(filePath) {
 app.commandLine.appendSwitch('disable-http-cache');
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 
+function wireWindowIpc() {
+  ipcMain.on('window:minimize', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize();
+  });
+  ipcMain.on('window:toggle-maximize', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window) return;
+    if (window.isMaximized()) window.unmaximize();
+    else window.maximize();
+  });
+  ipcMain.on('window:close', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close();
+  });
+  ipcMain.handle('window:is-maximized', (event) => {
+    return Boolean(BrowserWindow.fromWebContents(event.sender)?.isMaximized());
+  });
+}
+
 function createWindow(projectorSearch = '') {
   const window = new BrowserWindow({
     width: 1440,
@@ -304,16 +323,21 @@ function createWindow(projectorSearch = '') {
     minWidth: 960,
     minHeight: 640,
     backgroundColor: '#0a0c10',
+    icon: fs.existsSync(appIcon) ? appIcon : undefined,
     show: false,
     autoHideMenuBar: true,
+    frame: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: path.join(__dirname, 'preload.cjs'),
     },
   });
 
   window.once('ready-to-show', () => window.show());
+  window.on('maximize', () => window.webContents.send('window:maximized-changed', true));
+  window.on('unmaximize', () => window.webContents.send('window:maximized-changed', false));
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (isDev && url.startsWith(new URL(devUrl).origin)) return { action: 'allow' };
 
@@ -340,6 +364,7 @@ function createWindow(projectorSearch = '') {
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   if (!isDev) startLocalServer();
+  wireWindowIpc();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -1,11 +1,16 @@
 # ⚡ QNAHUT
 
-**A cyber-futuristic platform for hosting and running live team quiz competitions.**
+**Running a quiz today means juggling four apps — PowerPoint for questions, a
+separate scoreboard, a buzzer app, and a phone remote to run it all.**
 
-Run quiz nights for clubs, colleges, schools, and events — no accounts, no
-cloud dependency, no per-institution lock-in. Start the server on any laptop,
-share the link, and go. Everyone else just opens the page (or a QR code) on
-their phones.
+QNAHUT is all of that in **one** app. Questions with timers and media, a live
+scoreboard, server-fair team buzzers, and a remote control for the host — every
+piece synced in real time on one screen, in sync on every device in the room.
+No cloud, no accounts, no wiring apps together.
+
+Run quiz nights for clubs, colleges, schools, and events straight from a
+laptop: start the app, share a link or a QR code, and go. Everyone else just
+opens the page on their phones.
 
 <p>
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D18-brightgreen">
@@ -15,6 +20,22 @@ their phones.
 </p>
 
 ![Landing](docs/screenshots/01-landing.png)
+
+---
+
+## 🎯 One app. Every piece of the show.
+
+| Instead of juggling… | QNAHUT does it |
+|---|---|
+| **PowerPoint** + a clicker | A question deck with per-question timers, images, video and HTML, answer reveals, and a **big-screen projector view**. Driven from the host dashboard. |
+| **A separate scoreboard app** | A live, animated **leaderboard** with one-tap correct / partial / wrong scoring, custom points, undo, and confetti on the shared screen. |
+| **A buzzer app** | Real **team buzzers on phones**, timestamped by the server (not the phone) so the first press wins — even on flaky Wi-Fi. |
+| **A phone remote / controller** | A password-protected **phone remote** that runs the whole quiz: timer, next question, buzzer reset, reveal answer, and projector views. |
+| **Manual bookkeeping & moving files** | Everything — quiz, teams, scores, theme, and uploads — exports to **one `.zip`** and imports back in one step. |
+
+No other software needed. Open the app on the room's laptop, and the host desk,
+the projector, every team's phone, and the host's own phone all stay in sync on
+your Wi-Fi.
 
 ---
 
@@ -39,10 +60,13 @@ their phones.
 
 ## ✨ Features
 
-- **Zero setup** — no env vars, no cloud accounts, no databases. `npm install` + run.
+- **One app replaces four** — questions (PowerPoint), scoreboard, buzzer, and
+  remote controls all live in one synchronized app instead of four tools that
+  don't talk to each other.
 - **Four surfaces in sync** — a control dashboard for the host, a chrome-free
   projector screen, per-team phones with a thumb-sized buzzer, and a phone
   remote control for the host. All of them stay in sync in real time.
+- **Zero setup** — no env vars, no cloud accounts, no databases. `npm install` + run.
 - **Millisecond-fair buzzing** — buzzes are timestamped by the server (or the
   host device), never by the phone's own clock, so the first press wins even
   on flaky Wi-Fi.
@@ -200,8 +224,9 @@ Teams open the link (or scan the QR) from the Share panel and type their
 
 ![Remote control](docs/screenshots/12-remote-control.png)
 
-The host can drive the quiz from their phone: open `/remote` (link/QR from the
-dashboard, password-protected) and you get icon-only controls to
+The host can drive the whole quiz from their phone — no need to run back to the
+laptop: open `/remote` (link/QR from the dashboard, password-protected) and you
+get icon-only controls to
 
 - start / pause / reset the timer,
 - next / previous question,
@@ -272,10 +297,10 @@ tone). Themes are stored with the quiz and travel with a quiz package export.
 
 ## 📦 Quiz packages
 
-**Export** — the Settings panel downloads everything as one `.zip`: questions,
-slides, modes, theme, logo, and every uploaded image/video (as data URLs), so
-you can back up or relocate a quiz. **Import** loads a package back in one
-step, including its theme.
+**Export** — the Settings panel downloads everything — questions, slides,
+modes, theme, logo, and every uploaded image/video — as one `.zip`, so you can
+back up or relocate a quiz. **Import** loads a package back in one step,
+including its theme.
 
 There's also a script that pre-builds the bundled demo quiz as a package:
 
@@ -337,7 +362,8 @@ qnahut/
 ├── package.json
 ├── vite.config.js              # dev server + sync plugin (HTTP + WebSocket)
 ├── electron/
-│   └── main.cjs                # desktop shell + embedded sync server (port 3000)
+│   ├── main.cjs                # desktop shell + embedded sync server (port 3000)
+│   └── preload.cjs             # frameless window controls bridge
 ├── scripts/
 │   └── make-demo-package.mjs   # demo quiz → .zip package
 ├── docs/screenshots/           # README screenshots

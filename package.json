@@ -73,6 +73,7 @@
       ]
     },
     "nsis": {
+      "artifactName": "QNAHUT setup ${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
